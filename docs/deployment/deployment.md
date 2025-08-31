@@ -115,25 +115,7 @@ sudo systemctl enable certbot.timer
 - Check that browser shows secure lock icon
 - Test WebAuthn functionality
 
-### 3. Initial Configuration
-
-#### Test Installation
-1. Access `https://yourdomain.com/goldeneye/admin.html`
-2. Try to enroll a test YubiKey
-3. Check that backup API works
-4. Test user interface at `https://yourdomain.com/goldeneye/`
-
-#### Production Settings
-```javascript
-// In goldeneye-admin.js, adjust these settings for production:
-GoldeneveData.settings = {
-    autoExpire: 1800000,    // 30 minutes (adjust as needed)
-    requireTwoKeys: true,   // Always require two keys
-    allowInactive: false    // Don't allow disabled keys
-};
-```
-
-### 4. Security Hardening
+### 3. Security Hardening
 
 #### File Permissions
 ```bash
@@ -144,7 +126,7 @@ chmod 644 /var/www/html/goldeneye/*.html
 chmod 644 /var/www/html/goldeneye/*.js
 ```
 
-#### Additional Security Headers
+#### Security Headers
 ```apache
 # Add to .htaccess in goldeneye root directory
 <IfModule mod_headers.c>
@@ -152,17 +134,16 @@ chmod 644 /var/www/html/goldeneye/*.js
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Content-Security-Policy "default-src 'self' https://iaconelli.org; script-src 'self' 'unsafe-inline' https://iaconelli.org; style-src 'self' 'unsafe-inline' https://iaconelli.org;"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
 </IfModule>
 ```
 
-#### PHP Security
-```php
-// Add to backup-api.php for additional security
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-ini_set('error_log', '/var/log/goldeneye-errors.log');
-```
+### 4. Initial Testing
+
+1. Access `https://yourdomain.com/goldeneye/admin.html`
+2. Try to enroll a test YubiKey
+3. Check that backup API works
+4. Test user interface at `https://yourdomain.com/goldeneye/`
 
 ## Maintenance
 
@@ -180,37 +161,6 @@ ls -la /var/www/html/goldeneye/backups/ | head -20
 # Check web server logs for errors
 tail -f /var/log/apache2/error.log | grep goldeneye
 tail -f /var/log/nginx/error.log | grep goldeneye
-
-# Check PHP error logs
-tail -f /var/log/goldeneye-errors.log
-```
-
-### Updates
-```bash
-# Backup current installation
-cp -r /var/www/html/goldeneye /var/backups/goldeneye-$(date +%Y%m%d)
-
-# Deploy new version
-# Test in staging environment first
-# Update files preserving backups/ directory
-```
-
-## Customization
-
-### Branding
-- Edit CSS variables in admin.html and index.html
-- Update header links and site title
-- Modify color scheme using CSS custom properties
-
-### Domain Configuration
-- Update WebAuthn `rp.id` in JavaScript to match your domain
-- Modify CORS headers in backup-api.php if needed
-- Update any hardcoded references to iaconelli.org
-
-### Backup Retention
-```php
-// In backup-api.php, adjust retention period
-define('BACKUP_RETENTION_DAYS', 90); // Keep for 3 months instead of 1 year
 ```
 
 ## Troubleshooting
@@ -235,16 +185,6 @@ define('BACKUP_RETENTION_DAYS', 90); // Keep for 3 months instead of 1 year
 - Verify YubiKey firmware is up to date
 - Try different USB ports
 
-### Debug Mode
-```javascript
-// Add to goldeneye-admin.js for debugging
-const DEBUG = true;
-if (DEBUG) {
-    console.log('GoldeneveData:', GoldeneveData);
-    console.log('Available keys:', availableKeys);
-}
-```
-
 ## Production Checklist
 
 - [ ] HTTPS properly configured and working
@@ -253,29 +193,5 @@ if (DEBUG) {
 - [ ] File permissions set correctly
 - [ ] Security headers configured
 - [ ] Backup retention policy configured
-- [ ] Monitoring and alerting set up
 - [ ] Testing completed successfully
 - [ ] Documentation provided to users
-- [ ] Admin contact information configured
-
-## Support
-
-### Getting Help
-- Check TESTING.md for known issues
-- Review browser console for JavaScript errors
-- Check server error logs for PHP issues
-- Test with different YubiKey models
-
-### Reporting Issues
-When reporting issues, include:
-- Server configuration (Apache/Nginx version)
-- PHP version
-- Browser and version
-- YubiKey model
-- Error messages
-- Steps to reproduce
-
-### Contact Information
-- System Administrator: [your-email@domain.com]
-- Technical Support: [support@domain.com]
-- Emergency Contact: [emergency@domain.com]

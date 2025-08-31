@@ -1,4 +1,4 @@
-# Goldeneye Multi-Key System Testing Guide
+# Goldeneye Testing Guide
 
 ## Testing Checklist
 
