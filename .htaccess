@@ -1,0 +1,64 @@
+# Goldeneye Security Configuration
+
+# Force HTTPS (required for WebAuthn)
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Content-Security-Policy "default-src 'self' https://iaconelli.org; script-src 'self' 'unsafe-inline' https://iaconelli.org; style-src 'self' 'unsafe-inline' https://iaconelli.org; connect-src 'self';"
+</IfModule>
+
+# Rate limiting for admin panel (if mod_evasive available)
+<IfModule mod_evasive24.c>
+    DOSHashTableSize    2048
+    DOSPageCount        20
+    DOSSiteCount        100
+    DOSPageInterval     1
+    DOSSiteInterval     1
+    DOSBlockingPeriod   600
+</IfModule>
+
+# Block common attack patterns
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Block SQL injection attempts
+    RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+    RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2}) [OR]
+    RewriteCond %{QUERY_STRING} ^.*(\[|\]|\(|\)|<|>|ê|"|;|\?|\*|=$).* [NC,OR]
+    RewriteCond %{QUERY_STRING} ^.*(&#x22;|&#x27;|&#x3C;|&#x3E;|&#x5C;|&#x7B;|&#x7C;).* [NC]
+    RewriteRule ^(.*)$ - [F,L]
+    
+    # Block suspicious user agents
+    RewriteCond %{HTTP_USER_AGENT} ^$ [OR]
+    RewriteCond %{HTTP_USER_AGENT} ^(-|\.|') [OR]
+    RewriteCond %{HTTP_USER_AGENT} ^(.*)(<|>|%0A|%0D|%27|%3C|%3E|%00).* [NC,OR]
+    RewriteCond %{HTTP_USER_AGENT} ^.*(winhttp|HTTrack|clshttp|archiver|loader|email|harvest|extract|grab|miner).* [NC]
+    RewriteRule ^(.*)$ - [F,L]
+</IfModule>
+
+# Disable server signature
+ServerSignature Off
+
+# Set security headers for specific file types
+<FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</FilesMatch>
+
+# Additional protection for sensitive files
+<FilesMatch "(admin\.html|admin-auth\.js)$">
+    # Log all access attempts to admin files
+    <IfModule mod_log_config.c>
+        LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\"" admin_access
+        CustomLog logs/goldeneye_admin_access.log admin_access
+    </IfModule>
+</FilesMatch>
