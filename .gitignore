@@ -7,9 +7,9 @@
 ehthumbs.db
 Thumbs.db
 
-# Apache configuration files (contain deployment-specific settings)
-.htaccess
-backups/.htaccess
+# Apache configuration files - examples are tracked, but ignore local customizations
+.htaccess.local
+backups/.htaccess.local
 
 # Backup files (contain sensitive data)
 backups/*.backup

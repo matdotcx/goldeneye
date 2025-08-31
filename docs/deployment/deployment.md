@@ -34,18 +34,32 @@ chown www-data:www-data /var/www/html/goldeneye/backups
 # Ensure PHP can write backup files
 chmod 644 /var/www/html/goldeneye/backup-api.php
 
-# Copy and customize Apache configuration files
-cp /var/www/html/goldeneye/.htaccess.example /var/www/html/goldeneye/.htaccess
-cp /var/www/html/goldeneye/backups/.htaccess.example /var/www/html/goldeneye/backups/.htaccess
+# IMPORTANT: .htaccess files are included with basic security
+# but you should customize them for your deployment:
 
-# Edit .htaccess files to customize domain names and log paths
+# Customize main .htaccess (recommended)
 nano /var/www/html/goldeneye/.htaccess
+# - Update Content-Security-Policy with your domain
+# - Add additional rate limiting if needed
+# - Configure custom logging paths
+
+# Backup directory .htaccess should work as-is but can be enhanced
 nano /var/www/html/goldeneye/backups/.htaccess
+# - Add custom logging if desired
+# - Configure additional protections
 
 # Set appropriate permissions
 chmod 644 /var/www/html/goldeneye/.htaccess
 chmod 644 /var/www/html/goldeneye/backups/.htaccess
 ```
+
+**⚠️ Critical Security Note**: The included `.htaccess` files provide essential security protections including:
+- HTTPS redirect (required for WebAuthn)
+- Basic security headers
+- Backup directory protection
+- Attack pattern blocking
+
+While functional out-of-the-box, customizing them for your specific deployment is strongly recommended.
 
 #### Configure Web Server
 

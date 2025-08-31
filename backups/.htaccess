@@ -1,0 +1,18 @@
+# CRITICAL: Backup Directory Protection
+# This file MUST exist to secure backup files
+
+# Deny all direct access to backup files
+Order Deny,Allow
+Deny from all
+
+# Prevent directory listing
+Options -Indexes
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+</IfModule>
+
+# Disable server signature
+ServerSignature Off
