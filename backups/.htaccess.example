@@ -1,6 +1,7 @@
-# Goldeneye Backup Directory Protection
-# Deny all direct access to backup files
+# Goldeneye Backup Directory Protection Example
+# Copy to backups/.htaccess and customize for your deployment
 
+# Deny all direct access to backup files
 Order Deny,Allow
 Deny from all
 
@@ -20,5 +21,6 @@ ServerSignature Off
 # Log access attempts for security monitoring
 <IfModule mod_log_config.c>
     LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\"" backup_access
+    # CUSTOMIZE: Adjust log path for your server setup
     CustomLog logs/goldeneye_backup_access.log backup_access env=!backup_api_access
 </IfModule>

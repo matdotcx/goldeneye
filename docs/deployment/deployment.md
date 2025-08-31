@@ -24,7 +24,7 @@
 scp -r goldeneye/ user@server:/var/www/html/goldeneye/
 ```
 
-#### Set Permissions
+#### Set Permissions and Configuration
 ```bash
 # Create and secure backup directory
 mkdir -p /var/www/html/goldeneye/backups
@@ -33,6 +33,17 @@ chown www-data:www-data /var/www/html/goldeneye/backups
 
 # Ensure PHP can write backup files
 chmod 644 /var/www/html/goldeneye/backup-api.php
+
+# Copy and customize Apache configuration files
+cp /var/www/html/goldeneye/.htaccess.example /var/www/html/goldeneye/.htaccess
+cp /var/www/html/goldeneye/backups/.htaccess.example /var/www/html/goldeneye/backups/.htaccess
+
+# Edit .htaccess files to customize domain names and log paths
+nano /var/www/html/goldeneye/.htaccess
+nano /var/www/html/goldeneye/backups/.htaccess
+
+# Set appropriate permissions
+chmod 644 /var/www/html/goldeneye/.htaccess
 chmod 644 /var/www/html/goldeneye/backups/.htaccess
 ```
 

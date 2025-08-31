@@ -1,0 +1,31 @@
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Apache configuration files (contain deployment-specific settings)
+.htaccess
+backups/.htaccess
+
+# Backup files (contain sensitive data)
+backups/*.backup
+backups/*.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment-specific configuration
+config.local.php
+config.local.js
+
+# Log files
+*.log
+logs/
