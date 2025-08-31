@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .test-section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        #qrcode { margin: 20px 0; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 4px; }
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>QR Code Loading Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Direct CDN Load</h2>
+        <p>Testing if CDN script loads properly with current CSP...</p>
+        <div id="status1" class="error">Waiting for script load...</div>
+        <div id="qrcode1"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Alternative CDN</h2>
+        <p>Testing alternative CDN source...</p>
+        <div id="status2" class="error">Waiting for alternative script...</div>
+        <div id="qrcode2"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>TOTP Secret Example</h2>
+        <p>Secret: <code>D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6</code></p>
+        <p>This would generate a QR code for: <code>otpauth://totp/Goldeneye?secret=D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6&issuer=Goldeneye</code></p>
+        <div id="qrcode3"></div>
+    </div>
+
+    <!-- Test Script 1: jsdelivr CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Test 1: Check if QRCode library loaded
+            if (typeof QRCode !== 'undefined') {
+                document.getElementById('status1').textContent = '✓ QRCode library loaded successfully!';
+                document.getElementById('status1').className = 'success';
+                
+                // Generate test QR code
+                QRCode.toCanvas(document.getElementById('qrcode1'), 'https://github.com/matdotcx/goldeneye', {
+                    width: 200,
+                    margin: 2
+                });
+            } else {
+                document.getElementById('status1').textContent = '✗ QRCode library failed to load from jsdelivr CDN';
+                
+                // Test 2: Try alternative CDN
+                const script2 = document.createElement('script');
+                script2.src = 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
+                script2.onload = function() {
+                    document.getElementById('status2').textContent = '✓ Alternative CDN loaded successfully!';
+                    document.getElementById('status2').className = 'success';
+                    
+                    // Generate QR code with alternative library
+                    if (typeof QRCode !== 'undefined') {
+                        QRCode.toCanvas(document.getElementById('qrcode2'), 'Test from alternative CDN', {
+                            width: 200,
+                            margin: 2
+                        });
+                    }
+                };
+                script2.onerror = function() {
+                    document.getElementById('status2').textContent = '✗ Alternative CDN also failed - CSP blocking external scripts';
+                };
+                document.head.appendChild(script2);
+            }
+            
+            // Test 3: Generate TOTP QR code if library is available
+            setTimeout(function() {
+                if (typeof QRCode !== 'undefined') {
+                    const totpUrl = 'otpauth://totp/Goldeneye?secret=D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6&issuer=Goldeneye';
+                    QRCode.toCanvas(document.getElementById('qrcode3'), totpUrl, {
+                        width: 250,
+                        margin: 2
+                    });
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
