@@ -329,7 +329,7 @@
         let selectedKeyPair = { key1: null, key2: null };
         
         // Session timeout management
-        let sessionTimer = null;
+        let userSessionTimer = null;
         const SESSION_TIMEOUT = 120000; // 2 minutes
 
         // Load available keys from admin data
@@ -338,8 +338,14 @@
                 const stored = localStorage.getItem('goldeneye_admin_data');
                 if (stored) {
                     const data = JSON.parse(stored);
+                    console.log('Loaded admin data:', data);
                     const keysMap = new Map(data.keys || []);
+                    console.log('Keys map:', keysMap);
                     availableKeys = Array.from(keysMap.values()).filter(k => k.active);
+                    console.log('Available active keys:', availableKeys);
+                } else {
+                    console.log('No goldeneye_admin_data found in localStorage');
+                    availableKeys = [];
                 }
             } catch (error) {
                 console.error('Failed to load keys:', error);
@@ -349,10 +355,10 @@
 
         // Session timeout functions
         function resetSessionTimer() {
-            if (sessionTimer) {
-                clearTimeout(sessionTimer);
+            if (userSessionTimer) {
+                clearTimeout(userSessionTimer);
             }
-            sessionTimer = setTimeout(expireSession, SESSION_TIMEOUT);
+            userSessionTimer = setTimeout(expireSession, SESSION_TIMEOUT);
         }
 
         function expireSession() {
@@ -383,7 +389,10 @@
             resetSessionTimer();
             
             if (availableKeys.length === 0) {
-                showStatus('No keys enrolled. Please use Admin Panel to enroll keys first.', 'error');
+                showStatus('No keys enrolled. Please visit the Admin Panel at <a href="/admin/" style="color: inherit; text-decoration: underline;">/admin/</a> to enroll YubiKeys first.', 'error');
+                document.getElementById('auth1Btn').disabled = true;
+                document.getElementById('auth2Btn').disabled = true;
+                document.getElementById('unlockBtn').disabled = true;
                 return;
             }
             
@@ -495,7 +504,7 @@
                 }
 
                 if (!matchedKey) {
-                    throw new Error('No matching enrolled key found');
+                    throw new Error('YubiKey not recognized. Make sure this YubiKey is enrolled through the Admin Panel.');
                 }
 
                 // Check if this key is already authenticated
