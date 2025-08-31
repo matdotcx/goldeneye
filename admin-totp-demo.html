@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goldeneye Admin - TOTP Setup Demo</title>
+    <link rel="stylesheet" href="https://iaconelli.org/css/bundle.min.css">
+    <style>
+        .vault-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .totp-section {
+            background: var(--background-color);
+            border: 1px solid var(--text-color);
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .qr-container {
+            text-align: center;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .manual-entry {
+            background: #f0f0f0;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        
+        .secret-display {
+            background: #e6f3ff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid #0066cc;
+        }
+        
+        .instruction-step {
+            margin: 1rem 0;
+            padding: 0.5rem 0;
+        }
+        
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="vault-container">
+        <h1>Goldeneye Admin Panel</h1>
+        <h2>Two-Factor Authentication Setup</h2>
+        
+        <div class="totp-section">
+            <h3>Setup Two-Factor Authentication</h3>
+            <p>Add an extra layer of security with Time-based One-Time Passwords (TOTP) using apps like Google Authenticator, Authy, or 1Password.</p>
+            
+            <div id="qr-status" class="success">✓ QR Code system ready</div>
+            
+            <div class="qr-container">
+                <h4>Scan QR Code</h4>
+                <div id="qr-code-display">
+                    <!-- QR code will be generated here -->
+                </div>
+            </div>
+            
+            <div class="secret-display">
+                <h4>Manual Entry Required</h4>
+                <p><strong>Secret:</strong></p>
+                <div class="manual-entry" id="totp-secret">D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6</div>
+                <p><small>QR Code library not loaded. Please enter the secret manually in your authenticator app.</small></p>
+            </div>
+            
+            <div>
+                <h4>Instructions:</h4>
+                <div class="instruction-step">1. <strong>Scan the QR code above with your authenticator app</strong></div>
+                <div class="instruction-step">2. <strong>Or manually enter this secret:</strong> <code>D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6</code></div>
+                <div class="instruction-step">3. <strong>Enter the 6-digit code from your app below to verify</strong></div>
+            </div>
+            
+            <div style="margin-top: 2rem;">
+                <input type="text" id="totp-verify" placeholder="Enter 6-digit code" maxlength="6" style="padding: 0.5rem; margin-right: 1rem; font-size: 1.2rem; text-align: center; width: 150px;">
+                <button onclick="verifyTOTP()" style="padding: 0.5rem 1rem;">Verify Code</button>
+            </div>
+            
+            <div id="verify-result"></div>
+        </div>
+    </div>
+
+    <!-- Use local QR code library -->
+    <script src="./qrcode.min.js"></script>
+    <script>
+        // Generate TOTP secret and QR code
+        function generateTOTPSetup() {
+            const secret = 'D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6';
+            const issuer = 'Goldeneye';
+            const accountName = 'Admin';
+            
+            // Create TOTP URL
+            const totpUrl = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(accountName)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;
+            
+            console.log('TOTP URL:', totpUrl);
+            
+            // Check if QR library is available
+            if (typeof qrcode !== 'undefined') {
+                try {
+                    const qr = qrcode(0, 'M');
+                    qr.addData(totpUrl);
+                    qr.make();
+                    
+                    document.getElementById('qr-code-display').innerHTML = qr.createImgTag(6, 8);
+                    document.getElementById('qr-status').textContent = '✓ QR Code generated successfully';
+                    document.getElementById('qr-status').className = 'success';
+                    
+                    // Hide manual entry notice
+                    document.querySelector('.secret-display small').style.display = 'none';
+                    
+                    console.log('QR code generated successfully');
+                } catch (error) {
+                    console.error('QR generation failed:', error);
+                    document.getElementById('qr-status').textContent = '✗ QR Code generation failed: ' + error.message;
+                    document.getElementById('qr-status').className = 'error';
+                }
+            } else {
+                console.log('QR library not available, showing manual entry only');
+                document.getElementById('qr-code-display').innerHTML = '<p style="color: #666;">QR code library not loaded. Use manual entry below.</p>';
+                document.getElementById('qr-status').textContent = 'ⓘ QR Code library not loaded. Please enter the secret manually in your authenticator app.';
+                document.getElementById('qr-status').className = 'info';
+            }
+        }
+        
+        // Simple TOTP verification (demo purposes)
+        function verifyTOTP() {
+            const code = document.getElementById('totp-verify').value;
+            const resultDiv = document.getElementById('verify-result');
+            
+            if (code.length !== 6) {
+                resultDiv.innerHTML = '<div class="error">Please enter a 6-digit code</div>';
+                return;
+            }
+            
+            if (!/^\d{6}$/.test(code)) {
+                resultDiv.innerHTML = '<div class="error">Code must contain only digits</div>';
+                return;
+            }
+            
+            // In a real implementation, this would verify against the TOTP algorithm
+            // For demo purposes, we'll just show success
+            resultDiv.innerHTML = `
+                <div class="success">
+                    <strong>✓ TOTP Setup Complete!</strong><br>
+                    Code "${code}" received. Two-factor authentication is now configured.
+                    <br><small>Note: This is a demo. In production, this would verify against the actual TOTP algorithm.</small>
+                </div>
+            `;
+            
+            console.log('TOTP verification attempted with code:', code);
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(generateTOTPSetup, 500);
+        });
+        
+        // Allow Enter key to verify
+        document.getElementById('totp-verify').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyTOTP();
+            }
+        });
+    </script>
+</body>
+</html>
