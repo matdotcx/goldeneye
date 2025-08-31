@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Test - Local Library</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .test-section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 4px; }
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 4px; }
+        .info { color: blue; background: #e6f3ff; padding: 10px; border-radius: 4px; }
+        #qr-container { margin: 20px 0; text-align: center; }
+        #totp-qr { margin: 20px 0; text-align: center; }
+        .qr-code { border: 1px solid #ddd; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>QR Code Test - Local Library</h1>
+    
+    <div class="test-section">
+        <h2>Local QR Library Test</h2>
+        <div id="status" class="info">Testing local QR code library...</div>
+        <div id="qr-container"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>TOTP QR Code Generation</h2>
+        <p><strong>Secret:</strong> <code>D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6</code></p>
+        <p><strong>TOTP URL:</strong></p>
+        <code>otpauth://totp/Goldeneye?secret=D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6&issuer=Goldeneye</code>
+        <div id="totp-status" class="info">Generating TOTP QR code...</div>
+        <div id="totp-qr"></div>
+    </div>
+
+    <!-- Use local QR code library -->
+    <script src="./qrcode.min.js"></script>
+    <script>
+        console.log('Script loaded, checking QR library availability...');
+        
+        // Wait for DOM and script to load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                console.log('QR library available:', typeof qrcode);
+                
+                if (typeof qrcode !== 'undefined') {
+                    document.getElementById('status').textContent = '✓ Local QR code library loaded successfully!';
+                    document.getElementById('status').className = 'success';
+                    
+                    // Generate test QR code
+                    try {
+                        var qr = qrcode(0, 'M');
+                        qr.addData('https://github.com/matdotcx/goldeneye');
+                        qr.make();
+                        document.getElementById('qr-container').innerHTML = 
+                            '<div class="qr-code">' + qr.createImgTag(4, 8) + '</div>' +
+                            '<p>Test QR Code: Goldeneye GitHub Repository</p>';
+                        
+                        console.log('Test QR code generated successfully');
+                        
+                    } catch (error) {
+                        console.error('Test QR generation error:', error);
+                        document.getElementById('status').textContent = '✗ Test QR generation failed: ' + error;
+                        document.getElementById('status').className = 'error';
+                    }
+                    
+                    // Generate TOTP QR code
+                    try {
+                        var totpQr = qrcode(0, 'M');
+                        var totpUrl = 'otpauth://totp/Goldeneye?secret=D5T2UJ0XWCC34SUB0SKYV261YCDEXQK6&issuer=Goldeneye';
+                        totpQr.addData(totpUrl);
+                        totpQr.make();
+                        document.getElementById('totp-qr').innerHTML = 
+                            '<div class="qr-code">' + totpQr.createImgTag(6, 8) + '</div>';
+                        document.getElementById('totp-status').textContent = '✓ TOTP QR code generated successfully!';
+                        document.getElementById('totp-status').className = 'success';
+                        
+                        console.log('TOTP QR code generated successfully');
+                        
+                    } catch (error) {
+                        console.error('TOTP QR generation error:', error);
+                        document.getElementById('totp-status').textContent = '✗ TOTP QR generation failed: ' + error;
+                        document.getElementById('totp-status').className = 'error';
+                    }
+                    
+                } else {
+                    document.getElementById('status').textContent = '✗ QR code library failed to load';
+                    document.getElementById('status').className = 'error';
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>
