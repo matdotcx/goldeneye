@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Configuration
-define('BACKUP_DIR', __DIR__ . '/backups/');
+define('BACKUP_DIR', dirname(__DIR__) . '/backups/');
 define('MAX_BACKUP_SIZE', 1024 * 1024); // 1MB limit
 define('BACKUP_RETENTION_DAYS', 365); // Keep backups for 1 year
 
