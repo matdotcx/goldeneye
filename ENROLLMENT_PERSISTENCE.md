@@ -178,6 +178,18 @@ async function getAuthToken(credentialId)
    - Can recover any previous version
    - Provides audit trail of all enrollments
 
+### Admin Panel Git Management
+
+The admin panel now includes a dedicated **Git Backup** tab for managing backup configurations through a web interface. This provides:
+
+- Visual status monitoring
+- Remote repository management
+- SSH key generation and management
+- Manual push operations
+- Commit history viewing
+
+See [Git Backup Setup Guide](docs/GIT_BACKUP_SETUP.md#admin-panel-git-configuration-recommended) for detailed instructions on using the web interface.
+
 ### Manual Git Operations
 
 ```bash

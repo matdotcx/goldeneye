@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Goldeneye enrollment persistence system includes automatic Git-based backups. This guide covers advanced configuration options for remote backup repositories.
+The Goldeneye enrollment persistence system includes automatic Git-based backups. This guide covers both the web-based admin panel interface and advanced command-line configuration options for remote backup repositories.
 
 ## Local Git Backup (Default)
 
@@ -17,7 +17,73 @@ This provides:
 - Audit trail of changes
 - No external dependencies
 
-## Remote Git Backup Setup
+## Admin Panel Git Configuration (Recommended)
+
+The Goldeneye admin panel now includes a comprehensive Git Backup tab for managing backup configurations through a web interface.
+
+### Accessing the Git Backup Interface
+
+1. Navigate to the Goldeneye admin panel: `https://yourdomain.com/goldeneye/admin.html`
+2. Enroll a YubiKey for authentication (if not already done)
+3. Click on the "Git Backup" tab
+
+### Features Available in the UI
+
+#### 1. Git Status Monitoring
+- View repository initialization status
+- Check current branch
+- See total commit count
+- View last backup timestamp
+- Monitor uncommitted changes
+
+#### 2. Remote Repository Management
+- **Add Remote**: Enter a name and URL (GitHub, GitLab, or self-hosted)
+- **Test Connection**: Verify connectivity to remote repositories
+- **Remove Remote**: Delete configured remotes
+- **Push to Remote**: Manually push backups to selected repository
+
+#### 3. SSH Key Management
+- **Generate Keys**: Create Ed25519 or RSA keys directly from the UI
+- **View Public Keys**: Display and copy public keys for adding to Git services
+- **Delete Keys**: Remove SSH keys when no longer needed
+
+#### 4. Manual Operations
+- **Push Backups**: Select a remote and push current backups
+- **View History**: See recent commits with hash, message, and timestamp
+
+### Quick Setup Guide via Admin Panel
+
+1. **Generate SSH Key**:
+   - Enter a key name (e.g., "goldeneye-github")
+   - Select key type (Ed25519 recommended)
+   - Click "Generate Key"
+   - Copy the displayed public key
+
+2. **Add to Git Service**:
+   - GitHub: Settings → SSH and GPG keys → New SSH key
+   - GitLab: Preferences → SSH Keys → Add key
+   - Paste the public key and save
+
+3. **Configure Remote**:
+   - Enter remote name (e.g., "origin")
+   - Enter repository URL (e.g., `git@github.com:username/goldeneye-backup.git`)
+   - Click "Add Remote"
+
+4. **Test and Push**:
+   - Click "Test" next to the remote to verify connectivity
+   - Select the remote from dropdown
+   - Click "Push to Remote" to backup enrollments
+
+### Authentication
+
+The Git UI requires YubiKey authentication for write operations:
+- Adding/removing remotes
+- Generating/deleting SSH keys
+- Pushing to remotes
+
+Read-only operations (status, history, viewing keys) do not require authentication.
+
+## Remote Git Backup Setup (Command Line)
 
 ### Option 1: GitHub Private Repository
 
