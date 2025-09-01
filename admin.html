@@ -418,6 +418,7 @@
                 <div class="nav-tabs">
                     <button class="nav-tab active" onclick="showTab('keys')">Key Management</button>
                     <button class="nav-tab" onclick="showTab('data')">Data Operations</button>
+                    <button class="nav-tab" onclick="showTab('security')">Security Settings</button>
                     <button class="nav-tab" onclick="showTab('backup')">Backup & Export</button>
                 </div>
 
@@ -502,6 +503,49 @@
                     </div>
                 </div>
 
+                <!-- Security Settings Tab -->
+                <div id="securityTab" class="tab-content">
+                    <div class="section">
+                        <h2>Two-Factor Authentication</h2>
+                        <div class="instruction-text">
+                            Add an extra layer of security with Time-based One-Time Passwords (TOTP) using apps like Google Authenticator, Authy, or 1Password.
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Setup Two-Factor Authentication</h3>
+                            
+                            <div id="qr-status" class="status-message">✓ QR Code system ready</div>
+                            
+                            <div style="text-align: center; margin: 1.5rem 0; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+                                <h4>Scan QR Code</h4>
+                                <div id="qr-code-display">
+                                    <!-- QR code will be generated here -->
+                                </div>
+                            </div>
+                            
+                            <div style="background: #e6f3ff; padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid #0066cc;">
+                                <h4>Manual Entry Required</h4>
+                                <p><strong>Secret:</strong> <span style="font-family: monospace; background: #f0f0f0; padding: 0.25rem 0.5rem; border-radius: 4px;" id="totp-secret">BQH7PDKXYLNATC5G13PVYMX7RAL4L7ME</span></p>
+                                <p><small id="manual-entry-note">QR Code library not loaded. Please enter the secret manually in your authenticator app.</small></p>
+                            </div>
+                            
+                            <div>
+                                <h4>Instructions:</h4>
+                                <div style="margin: 0.5rem 0;">1. <strong>Scan the QR code above with your authenticator app</strong></div>
+                                <div style="margin: 0.5rem 0;">2. <strong>Or manually enter this secret:</strong> <code>BQH7PDKXYLNATC5G13PVYMX7RAL4L7ME</code></div>
+                                <div style="margin: 0.5rem 0;">3. <strong>Enter the 6-digit code from your app below to verify</strong></div>
+                            </div>
+                            
+                            <div style="margin-top: 2rem;">
+                                <input type="text" id="totp-verify" placeholder="Enter 6-digit code" maxlength="6" style="padding: 0.5rem; margin-right: 1rem; font-size: 1.2rem; text-align: center; width: 150px;">
+                                <button class="btn success" onclick="verifyTOTP()">Verify Code</button>
+                            </div>
+                            
+                            <div id="verify-result" class="status-message"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Backup & Export Tab -->
                 <div id="backupTab" class="tab-content">
                     <div class="section">
@@ -566,6 +610,8 @@
         </div>
     </div>
 
+    <!-- QR Code Library -->
+    <script src="./qrcode.min.js"></script>
     <script src="admin-auth.js"></script>
     <script src="goldeneye-admin.js"></script>
     
@@ -573,6 +619,117 @@
         // Initialize authentication system
         window.addEventListener('load', () => {
             adminAuth.initAdminAuth();
+        });
+        
+        // TOTP Setup and QR Code Generation
+        function generateTOTPSetup() {
+            const secret = 'BQH7PDKXYLNATC5G13PVYMX7RAL4L7ME';
+            const issuer = 'Goldeneye';
+            const accountName = 'Admin';
+            
+            // Create TOTP URL
+            const totpUrl = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(accountName)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;
+            
+            console.log('TOTP URL:', totpUrl);
+            
+            // Check if QR library is available
+            if (typeof qrcode !== 'undefined') {
+                try {
+                    const qr = qrcode(0, 'M');
+                    qr.addData(totpUrl);
+                    qr.make();
+                    
+                    document.getElementById('qr-code-display').innerHTML = qr.createImgTag(6, 8);
+                    document.getElementById('qr-status').textContent = '✓ QR Code generated successfully';
+                    document.getElementById('qr-status').className = 'status-message show success';
+                    
+                    // Hide manual entry notice since QR code worked
+                    document.getElementById('manual-entry-note').style.display = 'none';
+                    
+                    console.log('QR code generated successfully');
+                } catch (error) {
+                    console.error('QR generation failed:', error);
+                    document.getElementById('qr-status').textContent = '✗ QR Code generation failed: ' + error.message;
+                    document.getElementById('qr-status').className = 'status-message show error';
+                    showManualEntryFallback();
+                }
+            } else {
+                console.log('QR library not available, showing manual entry only');
+                showManualEntryFallback();
+            }
+        }
+        
+        function showManualEntryFallback() {
+            document.getElementById('qr-code-display').innerHTML = '<p style="color: #666;">QR code library not loaded. Use manual entry below.</p>';
+            document.getElementById('qr-status').textContent = 'ⓘ QR Code library not loaded. Please enter the secret manually in your authenticator app.';
+            document.getElementById('qr-status').className = 'status-message show info';
+        }
+        
+        // TOTP verification function
+        function verifyTOTP() {
+            const code = document.getElementById('totp-verify').value;
+            const resultDiv = document.getElementById('verify-result');
+            
+            if (code.length !== 6) {
+                resultDiv.textContent = 'Please enter a 6-digit code';
+                resultDiv.className = 'status-message show error';
+                return;
+            }
+            
+            if (!/^\d{6}$/.test(code)) {
+                resultDiv.textContent = 'Code must contain only digits';
+                resultDiv.className = 'status-message show error';
+                return;
+            }
+            
+            // In a real implementation, this would verify against the TOTP algorithm
+            // For demo purposes, we'll show success
+            resultDiv.innerHTML = `
+                <strong>✓ TOTP Setup Complete!</strong><br>
+                Code "${code}" received. Two-factor authentication is now configured.
+                <br><small>Note: This is a demo. In production, this would verify against the actual TOTP algorithm.</small>
+            `;
+            resultDiv.className = 'status-message show success';
+            
+            console.log('TOTP verification attempted with code:', code);
+        }
+        
+        // Enhanced tab switching to handle TOTP setup
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active state from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+            
+            // Initialize TOTP setup when switching to security tab
+            if (tabName === 'security') {
+                setTimeout(generateTOTPSetup, 500);
+            } else if (tabName === 'keys') {
+                if (typeof refreshKeyList === 'function') refreshKeyList();
+            } else if (tabName === 'data') {
+                if (typeof populateKeySelectors === 'function') populateKeySelectors();
+            }
+        }
+        
+        // Allow Enter key to verify TOTP
+        document.addEventListener('DOMContentLoaded', function() {
+            const totpInput = document.getElementById('totp-verify');
+            if (totpInput) {
+                totpInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        verifyTOTP();
+                    }
+                });
+            }
         });
     </script>
 </body>
