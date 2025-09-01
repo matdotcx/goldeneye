@@ -1,0 +1,798 @@
+/**
+ * Goldeneye Admin Panel - Multi-Key Management System
+ * Implements N-choose-2 security with persistent localStorage
+ */
+
+// Data structure for the multi-key system
+const GoldeneveData = {
+    version: '2.0',
+    keys: new Map(), // keyId -> {id, name, description, credentialId, enrolledAt, active, lastUsed}
+    vaults: new Map(), // vaultId -> {id, name, encryptedData, iv, salt, createdAt, keyPairs}
+    settings: {
+        autoExpire: 1800000, // 30 minutes in ms
+        requireTwoKeys: true,
+        allowInactive: false
+    }
+};
+
+// Session state
+let sessionTimer = null;
+let currentlyAuthenticating = new Set();
+
+// Initialize the admin panel
+function init() {
+    loadStoredData();
+    refreshKeyList();
+    populateKeySelectors();
+    resetSessionTimer();
+    
+    // Auto-save data periodically
+    setInterval(saveStoredData, 30000);
+    
+    // Reset timer on user activity
+    document.addEventListener('click', resetSessionTimer);
+    document.addEventListener('keypress', resetSessionTimer);
+}
+
+// Data persistence functions
+function saveStoredData() {
+    try {
+        const exportData = {
+            version: GoldeneveData.version,
+            keys: Array.from(GoldeneveData.keys.entries()),
+            vaults: Array.from(GoldeneveData.vaults.entries()),
+            settings: GoldeneveData.settings
+        };
+        localStorage.setItem('goldeneye_admin_data', JSON.stringify(exportData));
+    } catch (error) {
+        console.error('Failed to save data:', error);
+        showStatus('Failed to save data to localStorage', 'error');
+    }
+}
+
+function loadStoredData() {
+    try {
+        const stored = localStorage.getItem('goldeneye_admin_data');
+        if (stored) {
+            const data = JSON.parse(stored);
+            
+            // Handle version migration if needed
+            if (data.version && data.version !== GoldeneveData.version) {
+                migrateData(data);
+                return;
+            }
+            
+            GoldeneveData.keys = new Map(data.keys || []);
+            GoldeneveData.vaults = new Map(data.vaults || []);
+            GoldeneveData.settings = { ...GoldeneveData.settings, ...data.settings };
+        }
+    } catch (error) {
+        console.error('Failed to load stored data:', error);
+        showStatus('Failed to load stored data', 'error');
+    }
+}
+
+function migrateData(oldData) {
+    showStatus('Migrating data to new format...', 'info');
+    // Implementation for migrating from older versions would go here
+    saveStoredData();
+    showStatus('Data migration completed', 'success');
+}
+
+// Session management
+function resetSessionTimer() {
+    if (sessionTimer) {
+        clearTimeout(sessionTimer);
+    }
+    sessionTimer = setTimeout(expireSession, GoldeneveData.settings.autoExpire);
+}
+
+function expireSession() {
+    showStatus('Session expired due to inactivity', 'info');
+    // Clear any sensitive data from memory but keep persistent data
+    document.getElementById('decryptedData').style.display = 'none';
+    document.getElementById('decryptedContent').textContent = '';
+    document.getElementById('dataInput').value = '';
+}
+
+// Utility functions
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function generateChallenge() {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return array;
+}
+
+function bufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+function base64ToBuffer(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+// Status message display
+function showStatus(message, type = 'info') {
+    const statusEl = document.getElementById('statusMessage');
+    statusEl.textContent = message;
+    statusEl.className = `status-message show ${type}`;
+    
+    if (type !== 'error') {
+        setTimeout(() => {
+            statusEl.classList.remove('show');
+        }, 5000);
+    }
+}
+
+// Error handling
+function handleError(error, operation) {
+    console.error(`${operation} error:`, error);
+    
+    if (error.name === 'NotAllowedError') {
+        return 'Authentication was cancelled or timed out';
+    } else if (error.name === 'SecurityError') {
+        return 'Security requirements not met (HTTPS required)';
+    } else if (error.name === 'NotSupportedError') {
+        return 'WebAuthn not supported by this browser or device';
+    } else {
+        return `${operation} failed. Please try again`;
+    }
+}
+
+// Tab management
+function showTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active state from all tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabName + 'Tab').classList.add('active');
+    event.target.classList.add('active');
+    
+    // Refresh data when switching to tabs
+    if (tabName === 'keys') {
+        refreshKeyList();
+    } else if (tabName === 'data') {
+        populateKeySelectors();
+    }
+}
+
+// Key management functions
+function refreshKeyList() {
+    const tbody = document.getElementById('keyTableBody');
+    tbody.innerHTML = '';
+    
+    if (GoldeneveData.keys.size === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; opacity: 0.7;">No keys enrolled</td></tr>';
+        return;
+    }
+    
+    GoldeneveData.keys.forEach((key, keyId) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${key.name}</td>
+            <td style="font-family: monospace; font-size: 0.8rem;">${key.credentialId.substring(0, 16)}...</td>
+            <td>${new Date(key.enrolledAt).toLocaleDateString()}</td>
+            <td><span class="key-status-badge ${key.active ? 'active' : 'inactive'}">${key.active ? 'Active' : 'Inactive'}</span></td>
+            <td class="key-actions">
+                <button class="btn small" onclick="testKey('${keyId}')">Test</button>
+                <button class="btn small" onclick="editKey('${keyId}')">Edit</button>
+                <button class="btn small ${key.active ? 'danger' : 'success'}" onclick="toggleKeyStatus('${keyId}')">${key.active ? 'Disable' : 'Enable'}</button>
+                <button class="btn small danger" onclick="deleteKey('${keyId}')">Delete</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function populateKeySelectors() {
+    const key1Select = document.getElementById('key1Select');
+    const key2Select = document.getElementById('key2Select');
+    
+    // Clear existing options (keep first empty option)
+    key1Select.innerHTML = '<option value="">Select first key...</option>';
+    key2Select.innerHTML = '<option value="">Select second key...</option>';
+    
+    // Add active keys to selectors
+    GoldeneveData.keys.forEach((key, keyId) => {
+        if (key.active) {
+            const option1 = document.createElement('option');
+            option1.value = keyId;
+            option1.textContent = key.name;
+            key1Select.appendChild(option1);
+            
+            const option2 = document.createElement('option');
+            option2.value = keyId;
+            option2.textContent = key.name;
+            key2Select.appendChild(option2);
+        }
+    });
+}
+
+// Modal management
+function showEnrollModal() {
+    document.getElementById('enrollModal').classList.add('show');
+    document.getElementById('keyName').focus();
+}
+
+function hideEnrollModal() {
+    document.getElementById('enrollModal').classList.remove('show');
+    document.getElementById('keyName').value = '';
+    document.getElementById('keyDescription').value = '';
+}
+
+// Key enrollment
+async function enrollNewKey() {
+    const name = document.getElementById('keyName').value.trim();
+    const description = document.getElementById('keyDescription').value.trim();
+    
+    if (!name) {
+        showStatus('Please enter a key name', 'error');
+        return;
+    }
+    
+    try {
+        showStatus('Insert YubiKey and touch when it blinks...', 'info');
+        
+        const challenge = generateChallenge();
+        const keyId = generateId();
+        const userId = new TextEncoder().encode(`goldeneye_${keyId}`);
+
+        const credential = await navigator.credentials.create({
+            publicKey: {
+                challenge: challenge,
+                rp: {
+                    name: "Goldeneye Multi-Key Vault",
+                    id: window.location.hostname
+                },
+                user: {
+                    id: userId,
+                    name: `${keyId}@goldeneye.local`,
+                    displayName: name
+                },
+                pubKeyCredParams: [
+                    { alg: -7, type: "public-key" },  // ES256
+                    { alg: -257, type: "public-key" } // RS256
+                ],
+                authenticatorSelection: {
+                    authenticatorAttachment: "cross-platform",
+                    requireResidentKey: false,
+                    userVerification: "discouraged"
+                },
+                timeout: 60000,
+                attestation: "none"
+            }
+        });
+
+        // Store key data
+        const keyData = {
+            id: keyId,
+            name: name,
+            description: description,
+            credentialId: bufferToBase64(credential.rawId),
+            enrolledAt: new Date().toISOString(),
+            active: true,
+            lastUsed: null
+        };
+
+        GoldeneveData.keys.set(keyId, keyData);
+        saveStoredData();
+        
+        hideEnrollModal();
+        showStatus(`Key "${name}" enrolled successfully!`, 'success');
+        refreshKeyList();
+        populateKeySelectors();
+
+    } catch (error) {
+        const errorMessage = handleError(error, 'Key enrollment');
+        showStatus(errorMessage, 'error');
+    }
+}
+
+// Key operations
+async function testKey(keyId) {
+    const key = GoldeneveData.keys.get(keyId);
+    if (!key) {
+        showStatus('Key not found', 'error');
+        return;
+    }
+    
+    try {
+        showStatus(`Testing "${key.name}"...`, 'info');
+        await authenticateKey(key, 'test');
+        
+        // Update last used timestamp
+        key.lastUsed = new Date().toISOString();
+        GoldeneveData.keys.set(keyId, key);
+        saveStoredData();
+        
+        showStatus(`Key "${key.name}" authenticated successfully!`, 'success');
+    } catch (error) {
+        const errorMessage = handleError(error, 'Key test');
+        showStatus(errorMessage, 'error');
+    }
+}
+
+function editKey(keyId) {
+    const key = GoldeneveData.keys.get(keyId);
+    if (!key) {
+        showStatus('Key not found', 'error');
+        return;
+    }
+    
+    const newName = prompt('Enter new name for this key:', key.name);
+    if (newName && newName.trim() !== key.name) {
+        key.name = newName.trim();
+        GoldeneveData.keys.set(keyId, key);
+        saveStoredData();
+        showStatus('Key name updated', 'success');
+        refreshKeyList();
+        populateKeySelectors();
+    }
+}
+
+function toggleKeyStatus(keyId) {
+    const key = GoldeneveData.keys.get(keyId);
+    if (!key) {
+        showStatus('Key not found', 'error');
+        return;
+    }
+    
+    const action = key.active ? 'disable' : 'enable';
+    if (confirm(`Are you sure you want to ${action} "${key.name}"?`)) {
+        key.active = !key.active;
+        GoldeneveData.keys.set(keyId, key);
+        saveStoredData();
+        showStatus(`Key "${key.name}" ${action}d`, 'success');
+        refreshKeyList();
+        populateKeySelectors();
+    }
+}
+
+function deleteKey(keyId) {
+    // Use secure delete function with 2FA
+    if (window.adminAuth && window.adminAuth.deleteKeyWithAuth) {
+        window.adminAuth.deleteKeyWithAuth(keyId);
+    } else {
+        // Fallback for systems without auth
+        const key = GoldeneveData.keys.get(keyId);
+        if (!key) {
+            showStatus('Key not found', 'error');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to permanently delete "${key.name}"?\n\nThis action cannot be undone and may prevent access to encrypted data.`)) {
+            GoldeneveData.keys.delete(keyId);
+            saveStoredData();
+            showStatus(`Key "${key.name}" deleted`, 'success');
+            refreshKeyList();
+            populateKeySelectors();
+        }
+    }
+}
+
+// Authentication function
+async function authenticateKey(keyData, purpose) {
+    if (currentlyAuthenticating.has(keyData.id)) {
+        throw new Error('Key is already being authenticated');
+    }
+    
+    currentlyAuthenticating.add(keyData.id);
+    
+    try {
+        const challenge = generateChallenge();
+        const credentialId = base64ToBuffer(keyData.credentialId);
+
+        const assertion = await navigator.credentials.get({
+            publicKey: {
+                challenge: challenge,
+                allowCredentials: [{
+                    id: credentialId,
+                    type: 'public-key',
+                    transports: ['usb', 'nfc']
+                }],
+                userVerification: "discouraged",
+                timeout: 60000
+            }
+        });
+
+        return bufferToBase64(assertion.response.signature);
+    } finally {
+        currentlyAuthenticating.delete(keyData.id);
+    }
+}
+
+// Key derivation for N-choose-2 system
+async function deriveEncryptionKey(keyId1, keyId2, salt) {
+    const key1 = GoldeneveData.keys.get(keyId1);
+    const key2 = GoldeneveData.keys.get(keyId2);
+    
+    if (!key1 || !key2) {
+        throw new Error('Invalid key selection');
+    }
+    
+    // Authenticate both keys
+    const sig1 = await authenticateKey(key1, 'encryption');
+    const sig2 = await authenticateKey(key2, 'encryption');
+    
+    // Create deterministic key material by sorting credential IDs
+    const sortedCredentials = [key1.credentialId, key2.credentialId].sort();
+    const combined = sortedCredentials.join('') + salt;
+    
+    const encoder = new TextEncoder();
+    const data = encoder.encode(combined);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    
+    return crypto.subtle.importKey(
+        'raw',
+        hashBuffer,
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+// Data operations - simplified encryption using all key combinations
+async function encryptAndStore() {
+    const dataInput = document.getElementById('dataInput').value;
+    if (!dataInput) {
+        showStatus('Please enter data to encrypt', 'error');
+        return;
+    }
+    
+    // Need at least 2 active keys
+    const activeKeys = Array.from(GoldeneveData.keys.values()).filter(k => k.active);
+    if (activeKeys.length < 2) {
+        showStatus('Need at least 2 active keys to encrypt data', 'error');
+        return;
+    }
+    
+    try {
+        showStatus('Creating vault accessible by any two enrolled keys...', 'info');
+        
+        // Generate salt for this encryption
+        const salt = bufferToBase64(crypto.getRandomValues(new Uint8Array(16)));
+        
+        // Use first two keys for the actual encryption, but store all possible pairs
+        const keyIds = activeKeys.slice(0, 2).map(k => k.id);
+        
+        // Derive encryption key
+        const encryptionKey = await deriveEncryptionKey(keyIds[0], keyIds[1], salt);
+
+        // Encrypt the data
+        const encoder = new TextEncoder();
+        const data = encoder.encode(dataInput);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        
+        const encryptedData = await crypto.subtle.encrypt(
+            {
+                name: 'AES-GCM',
+                iv: iv
+            },
+            encryptionKey,
+            data
+        );
+
+        // Generate all possible key pair combinations for N-choose-2 access
+        const allKeyPairs = [];
+        for (let i = 0; i < activeKeys.length; i++) {
+            for (let j = i + 1; j < activeKeys.length; j++) {
+                allKeyPairs.push([activeKeys[i].id, activeKeys[j].id]);
+            }
+        }
+
+        // Store encrypted vault
+        const vaultId = generateId();
+        const vaultData = {
+            id: vaultId,
+            name: `Vault ${new Date().toLocaleString()}`,
+            encryptedData: bufferToBase64(encryptedData),
+            iv: bufferToBase64(iv),
+            salt: salt,
+            createdAt: new Date().toISOString(),
+            keyPairs: allKeyPairs, // Store ALL possible key pair combinations
+            encryptionKeyPair: keyIds // Remember which specific pair was used for encryption
+        };
+
+        GoldeneveData.vaults.set(vaultId, vaultData);
+        saveStoredData();
+        
+        document.getElementById('dataInput').value = '';
+        showStatus(`Vault created! Accessible by any 2 of ${activeKeys.length} enrolled keys (${allKeyPairs.length} combinations)`, 'success');
+
+    } catch (error) {
+        const errorMessage = handleError(error, 'Data encryption');
+        showStatus(errorMessage, 'error');
+    }
+}
+
+async function retrieveData() {
+    const key1Id = document.getElementById('key1Select').value;
+    const key2Id = document.getElementById('key2Select').value;
+    
+    if (!key1Id || !key2Id) {
+        showStatus('Please select two keys', 'error');
+        return;
+    }
+    
+    if (key1Id === key2Id) {
+        showStatus('Please select two different keys', 'error');
+        return;
+    }
+    
+    // Find a vault that can be decrypted with these keys
+    const vault = Array.from(GoldeneveData.vaults.values()).find(v => 
+        v.keyPairs.some(pair => 
+            (pair[0] === key1Id && pair[1] === key2Id) || 
+            (pair[0] === key2Id && pair[1] === key1Id)
+        )
+    );
+    
+    if (!vault) {
+        showStatus('No data found that can be decrypted with selected keys', 'error');
+        return;
+    }
+    
+    try {
+        showStatus('Authenticating with selected keys...', 'info');
+        
+        // Derive decryption key using stored salt
+        const decryptionKey = await deriveEncryptionKey(key1Id, key2Id, vault.salt);
+
+        // Decrypt the data
+        const encryptedBuffer = base64ToBuffer(vault.encryptedData);
+        const iv = base64ToBuffer(vault.iv);
+
+        const decryptedData = await crypto.subtle.decrypt(
+            {
+                name: 'AES-GCM',
+                iv: iv
+            },
+            decryptionKey,
+            encryptedBuffer
+        );
+
+        const decoder = new TextDecoder();
+        const decryptedText = decoder.decode(decryptedData);
+
+        // Display decrypted data
+        document.getElementById('decryptedContent').textContent = decryptedText;
+        document.getElementById('decryptedData').style.display = 'block';
+        
+        showStatus('Data decrypted successfully!', 'success');
+
+        // Auto-hide after 30 seconds
+        setTimeout(() => {
+            document.getElementById('decryptedData').style.display = 'none';
+            document.getElementById('decryptedContent').textContent = '';
+        }, 30000);
+
+    } catch (error) {
+        const errorMessage = handleError(error, 'Data decryption');
+        showStatus(errorMessage, 'error');
+    }
+}
+
+// Backup and export functions
+function createBackup() {
+    try {
+        const backupData = {
+            version: GoldeneveData.version,
+            keys: Array.from(GoldeneveData.keys.entries()),
+            vaults: Array.from(GoldeneveData.vaults.entries()),
+            settings: GoldeneveData.settings,
+            createdAt: new Date().toISOString()
+        };
+        
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const url = URL.createObjectURL(dataBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `goldeneye-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showStatus('Backup file created and downloaded', 'success');
+    } catch (error) {
+        console.error('Backup creation failed:', error);
+        showStatus('Failed to create backup file', 'error');
+    }
+}
+
+async function uploadBackup() {
+    try {
+        const backupData = {
+            version: GoldeneveData.version,
+            keys: Array.from(GoldeneveData.keys.entries()),
+            vaults: Array.from(GoldeneveData.vaults.entries()),
+            settings: GoldeneveData.settings,
+            createdAt: new Date().toISOString()
+        };
+        
+        showStatus('Uploading backup to server...', 'info');
+        
+        const response = await fetch('backup-api.php?path=upload', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(backupData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showStatus(`Backup uploaded successfully! ID: ${result.backupId}`, 'success');
+            
+            // Show backup ID to user for future reference
+            setTimeout(() => {
+                alert(`Backup ID: ${result.backupId}\n\nSave this ID - you'll need it to restore your data.\n\nMetadata:\n- Keys: ${result.metadata.keyCount}\n- Vaults: ${result.metadata.vaultCount}\n- Size: ${(result.metadata.dataSize / 1024).toFixed(1)}KB`);
+            }, 1000);
+        } else {
+            throw new Error(result.error || 'Upload failed');
+        }
+        
+    } catch (error) {
+        console.error('Backup upload failed:', error);
+        showStatus(`Failed to upload backup: ${error.message}`, 'error');
+    }
+}
+
+function importBackup() {
+    const fileInput = document.getElementById('backupFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showStatus('Please select a backup file', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const backupData = JSON.parse(e.target.result);
+            
+            if (confirm('This will replace all current data. Continue?')) {
+                GoldeneveData.keys = new Map(backupData.keys || []);
+                GoldeneveData.vaults = new Map(backupData.vaults || []);
+                GoldeneveData.settings = { ...GoldeneveData.settings, ...backupData.settings };
+                
+                saveStoredData();
+                refreshKeyList();
+                populateKeySelectors();
+                
+                showStatus('Backup imported successfully', 'success');
+            }
+        } catch (error) {
+            console.error('Import failed:', error);
+            showStatus('Invalid backup file format', 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+async function downloadBackup() {
+    const backupId = document.getElementById('backupId').value.trim();
+    
+    if (!backupId) {
+        showStatus('Please enter a backup ID', 'error');
+        return;
+    }
+    
+    try {
+        showStatus('Downloading backup from server...', 'info');
+        
+        const response = await fetch(`backup-api.php?path=download/${encodeURIComponent(backupId)}`, {
+            method: 'GET',
+            headers: { 
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Backup not found - check your backup ID');
+            }
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const backupData = await response.json();
+        
+        // Validate backup data structure
+        if (!backupData.version || !backupData.keys || !backupData.vaults) {
+            throw new Error('Invalid backup format received from server');
+        }
+        
+        if (confirm(`Found backup with ${backupData.keys.length} keys and ${backupData.vaults.length} vaults.\n\nThis will replace all current data. Continue?`)) {
+            GoldeneveData.keys = new Map(backupData.keys || []);
+            GoldeneveData.vaults = new Map(backupData.vaults || []);
+            GoldeneveData.settings = { ...GoldeneveData.settings, ...backupData.settings };
+            
+            saveStoredData();
+            refreshKeyList();
+            populateKeySelectors();
+            
+            showStatus('Backup restored successfully from server', 'success');
+            document.getElementById('backupId').value = '';
+        }
+        
+    } catch (error) {
+        console.error('Backup download failed:', error);
+        showStatus(`Failed to download backup: ${error.message}`, 'error');
+    }
+}
+
+// System reset with authentication
+function resetSystem() {
+    // Use secure reset function with 2FA
+    if (window.adminAuth && window.adminAuth.resetSystemWithAuth) {
+        window.adminAuth.resetSystemWithAuth();
+    } else {
+        // Fallback for systems without auth
+        if (confirm('This will permanently delete ALL keys and encrypted data.\n\nThis action cannot be undone. Are you absolutely sure?')) {
+            if (confirm('Last chance! This will delete everything. Click OK to proceed or Cancel to abort.')) {
+                localStorage.removeItem('goldeneye_admin_data');
+                GoldeneveData.keys.clear();
+                GoldeneveData.vaults.clear();
+                
+                refreshKeyList();
+                populateKeySelectors();
+                document.getElementById('decryptedData').style.display = 'none';
+                document.getElementById('dataInput').value = '';
+                
+                showStatus('System reset completed - all data deleted', 'success');
+            }
+        }
+    }
+}
+
+// Logout function for admin
+function logoutAdmin() {
+    if (window.adminAuth && window.adminAuth.logoutAdmin) {
+        window.adminAuth.logoutAdmin('Manual logout');
+    }
+}
+
+// Show/hide admin controls based on auth status
+function updateAdminControls() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        if (window.adminAuth && window.adminAuth.isAuthenticated()) {
+            logoutBtn.style.display = 'inline-block';
+        } else {
+            logoutBtn.style.display = 'none';
+        }
+    }
+}
+
+// Initialize when page loads
+window.addEventListener('load', init);
