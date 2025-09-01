@@ -32,8 +32,8 @@ define('VAULT_DIR', DATA_DIR . 'vaults/');
 define('GIT_BACKUP_DIR', DATA_DIR . 'git-backup/');
 
 define('MAX_DATA_SIZE', 1024 * 1024); // 1MB limit
-define('BACKUP_RETENTION_DAYS', 365); // Keep backups for 1 year
-define('VAULT_RETENTION_DAYS', 365); // Keep vaults for 1 year
+define('BACKUP_RETENTION_DAYS', -1); // Never expire backups
+define('VAULT_RETENTION_DAYS', -1); // Never expire vaults
 define('ENROLLMENT_RETENTION_DAYS', -1); // Never expire enrollments
 
 // Authentication token lifetime (5 minutes)
