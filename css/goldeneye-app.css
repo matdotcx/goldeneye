@@ -1,0 +1,546 @@
+/**
+ * Goldeneye Application Styles
+ * Extends the Doves Deadline theme for technical application UI
+ * 
+ * Design Principles:
+ * - Typography-first approach
+ * - Minimal UI chrome
+ * - Orange accent (#FF7900)
+ * - Consistent light/dark theming
+ */
+
+/* ========================================================================
+   Application Container
+   ======================================================================== */
+
+.vault-container {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+}
+
+/* ========================================================================
+   Navigation Tabs - Text-based like main navigation
+   ======================================================================== */
+
+.nav-tabs {
+    display: flex;
+    gap: 2rem;
+    margin: 2rem 0;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--link-color);
+}
+
+.nav-tab {
+    font-family: var(--font-text);
+    font-size: inherit;
+    color: var(--text-color);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    padding: 0;
+}
+
+.nav-tab:hover, 
+.nav-tab:focus {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.nav-tab.active {
+    opacity: 1;
+    color: var(--link-color);
+    text-decoration: underline;
+}
+
+/* ========================================================================
+   Tab Content Areas
+   ======================================================================== */
+
+.tab-content {
+    display: none;
+    margin-top: 2rem;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content h2 {
+    font-family: var(--font-headline);
+    font-size: var(--heading-size);
+    font-weight: 400;
+    color: var(--text-color);
+    margin: 2em 0 1rem;
+    border-bottom: 1px solid var(--link-color);
+    padding-bottom: 0.3rem;
+    opacity: 0.9;
+    line-height: 1.2;
+}
+
+.tab-content h3 {
+    font-family: var(--font-text);
+    font-weight: 400;
+    font-variant: small-caps;
+    letter-spacing: 0.02em;
+    font-size: 18px;
+    margin-top: 2em;
+    margin-bottom: 0.8em;
+}
+
+/* ========================================================================
+   Sections and Cards
+   ======================================================================== */
+
+.section {
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: rgba(248, 245, 240, 0.3);
+    border-radius: 4px;
+    border: 1px solid rgba(35, 35, 35, 0.05);
+}
+
+[data-theme="dark"] .section {
+    background: rgba(31, 31, 31, 0.3);
+    border-color: rgba(248, 245, 240, 0.05);
+}
+
+.key-card {
+    padding: 1.5rem;
+    background: var(--background-color);
+    border: 1px solid rgba(35, 35, 35, 0.1);
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .key-card {
+    border-color: rgba(248, 245, 240, 0.1);
+}
+
+.key-card.enrolled {
+    border-color: var(--link-color);
+    background: rgba(255, 121, 0, 0.02);
+}
+
+[data-theme="dark"] .key-card.enrolled {
+    background: rgba(255, 146, 72, 0.02);
+}
+
+.key-card.authenticating {
+    border-color: var(--link-color);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* ========================================================================
+   Buttons - Outlined style matching theme
+   ======================================================================== */
+
+.btn {
+    color: var(--link-color);
+    background: transparent;
+    border: 1px solid var(--link-color);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-family: var(--font-text);
+    font-size: inherit;
+    transition: all 0.2s ease;
+    margin-right: 0.75rem;
+    margin-bottom: 0.75rem;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:hover {
+    background: var(--link-color);
+    color: var(--background-color);
+    text-decoration: none;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+    background: transparent;
+    color: var(--link-color);
+}
+
+.btn.danger {
+    border-color: #cc3300;
+    color: #cc3300;
+}
+
+.btn.danger:hover {
+    background: #cc3300;
+    color: var(--background-color);
+}
+
+.btn.success {
+    border-color: #2a664d;
+    color: #2a664d;
+}
+
+.btn.success:hover {
+    background: #2a664d;
+    color: var(--background-color);
+}
+
+.btn.small {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.9em;
+}
+
+/* Button groups */
+.button-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+}
+
+/* ========================================================================
+   Forms and Inputs
+   ======================================================================== */
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+textarea,
+select {
+    font-family: var(--font-text);
+    font-size: inherit;
+    padding: 0.5rem;
+    background: var(--background-color);
+    border: 1px solid rgba(35, 35, 35, 0.2);
+    color: var(--text-color);
+    width: 100%;
+    transition: border-color 0.2s ease;
+}
+
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    border-color: rgba(248, 245, 240, 0.2);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--link-color);
+}
+
+textarea {
+    min-height: 150px;
+    resize: vertical;
+    font-family: var(--font-code);
+    font-size: 0.9em;
+}
+
+/* ========================================================================
+   Status Messages
+   ======================================================================== */
+
+.status-message {
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+    font-family: var(--font-text);
+    display: none;
+}
+
+.status-message.show {
+    display: block;
+}
+
+.status-message.success {
+    background: rgba(42, 102, 77, 0.1);
+    border: 1px solid #2a664d;
+    color: #2a664d;
+}
+
+.status-message.error {
+    background: rgba(204, 51, 0, 0.1);
+    border: 1px solid #cc3300;
+    color: #cc3300;
+}
+
+.status-message.info {
+    background: rgba(255, 121, 0, 0.1);
+    border: 1px solid var(--link-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .status-message.success {
+    background: rgba(42, 102, 77, 0.15);
+}
+
+[data-theme="dark"] .status-message.error {
+    background: rgba(204, 51, 0, 0.15);
+}
+
+[data-theme="dark"] .status-message.info {
+    background: rgba(255, 146, 72, 0.15);
+}
+
+/* ========================================================================
+   Badges and Labels
+   ======================================================================== */
+
+.key-status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85em;
+    font-family: var(--font-text);
+    font-variant: small-caps;
+    letter-spacing: 0.02em;
+}
+
+.key-status-badge.active {
+    color: #2a664d;
+    background: rgba(42, 102, 77, 0.1);
+    border: 1px solid #2a664d;
+}
+
+.key-status-badge.inactive {
+    color: var(--text-color);
+    opacity: 0.6;
+    background: rgba(35, 35, 35, 0.05);
+    border: 1px solid rgba(35, 35, 35, 0.1);
+}
+
+[data-theme="dark"] .key-status-badge.inactive {
+    background: rgba(248, 245, 240, 0.05);
+    border-color: rgba(248, 245, 240, 0.1);
+}
+
+/* ========================================================================
+   Code Display Areas
+   ======================================================================== */
+
+.backup-display,
+.code-display {
+    font-family: var(--font-code);
+    font-size: 0.85em;
+    background: rgba(35, 35, 35, 0.03);
+    border: 1px solid rgba(35, 35, 35, 0.1);
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+[data-theme="dark"] .backup-display,
+[data-theme="dark"] .code-display {
+    background: rgba(232, 232, 232, 0.03);
+    border-color: rgba(232, 232, 232, 0.1);
+}
+
+/* ========================================================================
+   Lists and Tables
+   ======================================================================== */
+
+.key-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.key-list li {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(35, 35, 35, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+[data-theme="dark"] .key-list li {
+    border-bottom-color: rgba(248, 245, 240, 0.1);
+}
+
+.key-list li:last-child {
+    border-bottom: none;
+}
+
+.key-info {
+    flex: 1;
+}
+
+.key-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* ========================================================================
+   Responsive Design
+   ======================================================================== */
+
+@media screen and (max-width: 840px) {
+    .nav-tabs {
+        gap: 1.5rem;
+        font-size: 0.95em;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .key-list li {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .key-actions {
+        margin-top: 1rem;
+        width: 100%;
+    }
+    
+    .key-actions .btn {
+        flex: 1;
+    }
+}
+
+@media screen and (max-width: 600px) {
+    .nav-tabs {
+        gap: 1rem;
+        font-size: 0.9em;
+        flex-wrap: wrap;
+    }
+    
+    .section {
+        padding: 1rem;
+    }
+    
+    .key-card {
+        padding: 1rem;
+    }
+}
+
+/* ========================================================================
+   Animations
+   ======================================================================== */
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}
+
+/* ========================================================================
+   Git Backup UI Specific
+   ======================================================================== */
+
+.git-status-info {
+    font-family: var(--font-text);
+    line-height: 1.6;
+}
+
+.git-status-info div {
+    margin: 0.5rem 0;
+}
+
+.remote-item,
+.ssh-key-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(35, 35, 35, 0.1);
+}
+
+[data-theme="dark"] .remote-item,
+[data-theme="dark"] .ssh-key-item {
+    border-bottom-color: rgba(248, 245, 240, 0.1);
+}
+
+.remote-actions,
+.key-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.public-key-textarea {
+    font-family: var(--font-code);
+    font-size: 0.75em;
+    width: 100%;
+    height: 100px;
+    margin: 1rem 0;
+}
+
+.git-history {
+    margin-top: 1rem;
+}
+
+.commit-list {
+    list-style: none;
+    padding: 0;
+}
+
+.commit-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(35, 35, 35, 0.1);
+    font-size: 0.9em;
+}
+
+[data-theme="dark"] .commit-item {
+    border-bottom-color: rgba(248, 245, 240, 0.1);
+}
+
+.commit-hash {
+    font-family: var(--font-code);
+    color: var(--link-color);
+}
+
+.commit-message {
+    color: var(--text-color);
+}
+
+.commit-date {
+    color: var(--text-color);
+    opacity: 0.7;
+    font-size: 0.9em;
+}
+
+/* ========================================================================
+   Utility Classes
+   ======================================================================== */
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mb-1 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
+.help-text {
+    font-size: 0.9em;
+    opacity: 0.8;
+    margin-top: 0.5rem;
+}

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Goldeneye Admin - Multi-Key Management</title>
     <link rel="stylesheet" href="https://iaconelli.org/css/bundle.min.css">
+    <link rel="stylesheet" href="/goldeneye/css/goldeneye-app.css">
     <script>
         // Theme toggle functionality - inlined from Hugo
         document.addEventListener("DOMContentLoaded", () => {
@@ -388,10 +389,10 @@
 </head>
 <body>
     <header class="site-header">
-        <a href="/" class="site-title">Deadline</a>
+        <a href="/goldeneye/admin/" class="site-title">Goldeneye Admin</a>
         <nav class="main-nav">
-            <a href="index.html" class="nav-link">User Mode</a>
-            <button class="btn danger small" onclick="logoutAdmin()" id="logoutBtn" style="margin-right: 1rem; display: none;">Logout</button>
+            <a href="/goldeneye/" title="User Mode">User Mode</a>
+            <a href="#" onclick="logoutAdmin(); return false;" id="logoutBtn" style="display: none;">Logout</a>
             <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
                 <div class="toggle-icons">
                     <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
