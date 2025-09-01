@@ -17,7 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Configuration
-define('DATA_DIR', __DIR__ . '/data/');
+// Data directory should be outside web root for security
+// On production server, this should be /var/www/goldeneye-data/
+// For local testing, falls back to ./data/
+if (file_exists('/var/www/goldeneye-data/')) {
+    define('DATA_DIR', '/var/www/goldeneye-data/');
+} else {
+    // Fallback for local development - still not ideal but works for testing
+    define('DATA_DIR', sys_get_temp_dir() . '/goldeneye-data/');
+}
 define('BACKUP_DIR', DATA_DIR . 'backups/');
 define('ENROLLMENT_DIR', DATA_DIR . 'enrollments/');
 define('VAULT_DIR', DATA_DIR . 'vaults/');

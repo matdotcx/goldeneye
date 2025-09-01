@@ -1,3 +1,9 @@
+# CRITICAL SECURITY: Data directory MUST NEVER be in web root or git
+data/
+/data/
+goldeneye-data/
+/var/www/goldeneye-data/
+
 # macOS system files
 .DS_Store
 .DS_Store?
