@@ -20,8 +20,9 @@ let sessionTimer = null;
 let currentlyAuthenticating = new Set();
 
 // Initialize the admin panel
-function init() {
+async function init() {
     loadStoredData();
+    await syncEnrollmentsFromServer(); // Load enrollments from server
     refreshKeyList();
     populateKeySelectors();
     resetSessionTimer();
@@ -296,6 +297,9 @@ async function enrollNewKey() {
 
         GoldeneveData.keys.set(keyId, keyData);
         saveStoredData();
+        
+        // Sync enrollment to server
+        await syncEnrollmentToServer(keyData);
         
         hideEnrollModal();
         showStatus(`Key "${name}" enrolled successfully!`, 'success');
@@ -791,6 +795,151 @@ function updateAdminControls() {
         } else {
             logoutBtn.style.display = 'none';
         }
+    }
+}
+
+// Server synchronization functions
+async function syncEnrollmentToServer(keyData) {
+    try {
+        // First, authenticate with the YubiKey to get a token
+        const authToken = await getAuthToken(keyData.credentialId);
+        
+        // Prepare enrollment data
+        const enrollmentData = {
+            credentialId: keyData.credentialId,
+            name: keyData.name,
+            description: keyData.description,
+            enrolledAt: keyData.enrolledAt,
+            active: keyData.active
+        };
+        
+        // Upload enrollment to server
+        const response = await fetch('vault-api.php?type=enrollment&action=upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': authToken
+            },
+            body: JSON.stringify(enrollmentData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Server sync failed: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Enrollment synced to server:', result);
+        
+    } catch (error) {
+        console.error('Failed to sync enrollment to server:', error);
+        // Don't throw - enrollment is saved locally even if server sync fails
+    }
+}
+
+async function syncEnrollmentsFromServer() {
+    try {
+        // Try to load enrollments from server (no auth needed for initial check)
+        const response = await fetch('vault-api.php?type=enrollment&action=list');
+        
+        if (!response.ok) {
+            console.log('No server enrollments available');
+            return;
+        }
+        
+        const data = await response.json();
+        if (data.items && data.items.length > 0) {
+            console.log(`Found ${data.items.length} enrollment(s) on server`);
+            
+            // For each enrollment, try to download it
+            for (const item of data.items) {
+                try {
+                    const enrollmentResponse = await fetch(`vault-api.php?type=enrollment&action=download/${item.id}`);
+                    if (enrollmentResponse.ok) {
+                        const enrollmentData = await enrollmentResponse.json();
+                        
+                        // Check if this enrollment exists locally
+                        let keyExists = false;
+                        GoldeneveData.keys.forEach((key) => {
+                            if (key.credentialId === enrollmentData.credentialId) {
+                                keyExists = true;
+                            }
+                        });
+                        
+                        if (!keyExists) {
+                            // Add the enrollment from server
+                            const keyId = generateId();
+                            const keyData = {
+                                id: keyId,
+                                name: enrollmentData.name || 'Imported Key',
+                                description: enrollmentData.description || '',
+                                credentialId: enrollmentData.credentialId,
+                                enrolledAt: enrollmentData.enrolledAt || new Date().toISOString(),
+                                active: enrollmentData.active !== false,
+                                lastUsed: null
+                            };
+                            
+                            GoldeneveData.keys.set(keyId, keyData);
+                            console.log('Imported enrollment from server:', keyData.name);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to download enrollment:', error);
+                }
+            }
+            
+            // Save any imported enrollments
+            saveStoredData();
+        }
+    } catch (error) {
+        console.error('Failed to sync enrollments from server:', error);
+        // Don't throw - continue with local data
+    }
+}
+
+async function getAuthToken(credentialId) {
+    try {
+        // Generate a challenge and get signature from YubiKey
+        const challenge = generateChallenge();
+        const credentialIdBuffer = base64ToBuffer(credentialId);
+        
+        const assertion = await navigator.credentials.get({
+            publicKey: {
+                challenge: challenge,
+                allowCredentials: [{
+                    id: credentialIdBuffer,
+                    type: 'public-key',
+                    transports: ['usb', 'nfc']
+                }],
+                userVerification: "discouraged",
+                timeout: 60000
+            }
+        });
+        
+        const signature = bufferToBase64(assertion.response.signature);
+        
+        // Request auth token from server
+        const response = await fetch('vault-api.php?type=enrollment&action=auth', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                credentialId: credentialId,
+                signature: signature
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Authentication failed');
+        }
+        
+        const data = await response.json();
+        return data.token;
+        
+    } catch (error) {
+        console.error('Failed to get auth token:', error);
+        // Return empty token - server sync will fail but local operations continue
+        return '';
     }
 }
 
