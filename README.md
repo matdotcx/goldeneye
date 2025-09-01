@@ -20,7 +20,7 @@ Goldeneye enables secure storage of sensitive data (primarily password vault mas
 Key Derivation: SHA-256(credentialID1 + credentialID2 + salt)
 Encryption: AES-GCM-256
 Authentication: WebAuthn/FIDO2 signatures
-Storage: Browser localStorage (encrypted)
+Storage: Browser localStorage (encrypted) + Server persistence (optional)
 ```
 
 ## Usage Scenarios
@@ -105,7 +105,9 @@ Storage: Browser localStorage (encrypted)
 goldeneye/
 ├── index.html          # Main application (self-contained)
 ├── admin.html          # Admin panel for multi-key management
-├── backup-api.php      # Server-side backup API
+├── vault-api.php       # Server-side persistence API (enrollments, backups)
+├── goldeneye-admin.js  # Admin panel JavaScript with sync capabilities
+├── ENROLLMENT_PERSISTENCE.md  # Detailed persistence system documentation
 ├── README.md          # This file
 └── docs/               # Documentation
     ├── overview/       # System overview and architecture
@@ -116,11 +118,19 @@ goldeneye/
 
 ## Data Storage and Portability
 
+### Local Storage
 All encrypted data is stored in browser `localStorage` under the current domain:
 - Encrypted master passphrase
 - Initialization vector (IV) for AES-GCM
 - Salt for key derivation
 - YubiKey credential IDs
+
+### Server Persistence (Admin Panel)
+The admin panel now includes automatic server synchronization:
+- YubiKey enrollments persist across browsers and devices
+- Git-based backup system for version history
+- No expiration for enrollment data
+- See [ENROLLMENT_PERSISTENCE.md](ENROLLMENT_PERSISTENCE.md) for full details
 
 ### Backup and Recovery
 

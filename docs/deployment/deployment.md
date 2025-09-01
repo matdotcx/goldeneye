@@ -4,9 +4,10 @@
 
 ### Server Requirements
 - **Web Server**: Apache 2.4+ or Nginx 1.14+
-- **PHP**: 7.4+ (for backup API)
+- **PHP**: 8.3+ with PHP-FPM (for vault API and persistence)
+- **Git**: For enrollment backup system
 - **HTTPS**: Required for WebAuthn functionality
-- **Storage**: 100MB+ for backup storage (scales with usage)
+- **Storage**: 100MB+ for data storage (scales with usage)
 
 ### Client Requirements  
 - **Browser**: Chrome 67+, Firefox 60+, Safari 14+, Edge 79+
@@ -26,13 +27,23 @@ scp -r goldeneye/ user@server:/var/www/html/goldeneye/
 
 #### Set Permissions and Configuration
 ```bash
-# Create and secure backup directory
-mkdir -p /var/www/html/goldeneye/backups
-chmod 755 /var/www/html/goldeneye/backups
-chown www-data:www-data /var/www/html/goldeneye/backups
+# Create and secure data directory (vault-api.php will create subdirectories)
+mkdir -p /var/www/html/goldeneye/data
+chmod 755 /var/www/html/goldeneye/data
+chown www-data:www-data /var/www/html/goldeneye/data
 
-# Ensure PHP can write backup files
-chmod 644 /var/www/html/goldeneye/backup-api.php
+# Ensure PHP can execute API files
+chmod 644 /var/www/html/goldeneye/vault-api.php
+
+# Install PHP-FPM if not already installed
+sudo apt-get install php8.3-fpm
+sudo systemctl enable php8.3-fpm
+sudo systemctl start php8.3-fpm
+
+# Enable required Apache modules
+sudo a2enmod proxy_fcgi setenvif
+sudo a2enconf php8.3-fpm
+sudo systemctl restart apache2
 
 # IMPORTANT: .htaccess files are included with basic security
 # but you should customize them for your deployment:
