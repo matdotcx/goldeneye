@@ -48,6 +48,8 @@ try {
             if (strpos($path, 'download/') === 0) {
                 $backupId = substr($path, 9); // Remove 'download/' prefix
                 handleDownload($backupId);
+            } elseif ($path === 'list') {
+                handleList();
             } else {
                 http_response_code(404);
                 echo json_encode(['error' => 'Invalid endpoint']);
@@ -134,6 +136,50 @@ function handleUpload() {
         'backupId' => $backupId,
         'message' => 'Backup uploaded successfully',
         'metadata' => $metadata
+    ]);
+}
+
+function handleList() {
+    // Get all backup files
+    $backupFiles = glob(BACKUP_DIR . '*.json');
+    $backups = [];
+    
+    foreach ($backupFiles as $backupFile) {
+        $basename = basename($backupFile, '.json');
+        
+        // Skip metadata files
+        if (strpos($basename, '.meta') !== false) {
+            continue;
+        }
+        
+        $metadataFile = BACKUP_DIR . $basename . '.meta.json';
+        $backup = [
+            'id' => $basename,
+            'file' => $backupFile,
+            'size' => filesize($backupFile),
+            'created' => date('Y-m-d H:i:s', filemtime($backupFile))
+        ];
+        
+        // Load metadata if available
+        if (file_exists($metadataFile)) {
+            $metadata = json_decode(file_get_contents($metadataFile), true);
+            if ($metadata) {
+                $backup = array_merge($backup, $metadata);
+            }
+        }
+        
+        $backups[] = $backup;
+    }
+    
+    // Sort by creation date (newest first)
+    usort($backups, function($a, $b) {
+        return strtotime($b['created']) - strtotime($a['created']);
+    });
+    
+    echo json_encode([
+        'success' => true,
+        'backups' => $backups,
+        'count' => count($backups)
     ]);
 }
 
