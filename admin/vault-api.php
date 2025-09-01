@@ -60,7 +60,9 @@ if (!in_array($type, ['backup', 'enrollment', 'vault'])) {
 
 try {
     // Handle authentication for enrollment operations
-    if ($type === 'enrollment' && $action !== 'auth') {
+    // List and download don't require auth (needed for initial sync)
+    // Only upload requires authentication
+    if ($type === 'enrollment' && $action === 'upload') {
         $authToken = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
         if (!validateAuthToken($authToken)) {
             http_response_code(401);
