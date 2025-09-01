@@ -943,5 +943,496 @@ async function getAuthToken(credentialId) {
     }
 }
 
+// =============================================================================
+// Git Backup Management Functions
+// =============================================================================
+
+let gitAuthToken = null;
+
+/**
+ * Initialize Git tab functionality
+ */
+function initGitTab() {
+    refreshGitStatus();
+    loadGitRemotes();
+    loadSSHKeys();
+}
+
+/**
+ * Refresh Git backup status
+ */
+async function refreshGitStatus() {
+    const statusDiv = document.getElementById('gitStatus');
+    
+    try {
+        statusDiv.innerHTML = '<span class="status-checking">Checking Git status...</span>';
+        
+        const response = await fetch('vault-api.php?type=git&action=status', {
+            method: 'GET',
+            headers: gitAuthToken ? { 'X-Auth-Token': gitAuthToken } : {}
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to get Git status');
+        }
+        
+        const data = await response.json();
+        
+        let statusHTML = '<div class="git-status-info">';
+        statusHTML += `<div><strong>Repository:</strong> ${data.initialized ? 'Initialized' : 'Not initialized'}</div>`;
+        statusHTML += `<div><strong>Branch:</strong> ${data.branch || 'N/A'}</div>`;
+        statusHTML += `<div><strong>Commits:</strong> ${data.commitCount || 0}</div>`;
+        statusHTML += `<div><strong>Last Backup:</strong> ${data.lastCommit || 'Never'}</div>`;
+        statusHTML += `<div><strong>Uncommitted Changes:</strong> ${data.hasChanges ? 'Yes' : 'No'}</div>`;
+        statusHTML += '</div>';
+        
+        statusDiv.innerHTML = statusHTML;
+        
+    } catch (error) {
+        console.error('Failed to refresh Git status:', error);
+        statusDiv.innerHTML = '<span class="status-error">Failed to load Git status</span>';
+    }
+}
+
+/**
+ * Load configured Git remotes
+ */
+async function loadGitRemotes() {
+    const remotesList = document.getElementById('remotesList');
+    
+    try {
+        remotesList.innerHTML = '<li>Loading remotes...</li>';
+        
+        const response = await fetch('vault-api.php?type=git&action=remotes', {
+            method: 'GET',
+            headers: gitAuthToken ? { 'X-Auth-Token': gitAuthToken } : {}
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load remotes');
+        }
+        
+        const data = await response.json();
+        
+        if (data.remotes && data.remotes.length > 0) {
+            remotesList.innerHTML = '';
+            data.remotes.forEach(remote => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="remote-item">
+                        <span><strong>${remote.name}:</strong> ${remote.url}</span>
+                        <div class="remote-actions">
+                            <button onclick="testGitConnection('${remote.name}')" class="btn-small">Test</button>
+                            <button onclick="removeGitRemote('${remote.name}')" class="btn-small btn-danger">Remove</button>
+                        </div>
+                    </div>
+                `;
+                remotesList.appendChild(li);
+            });
+        } else {
+            remotesList.innerHTML = '<li>No remotes configured</li>';
+        }
+        
+    } catch (error) {
+        console.error('Failed to load remotes:', error);
+        remotesList.innerHTML = '<li class="error">Failed to load remotes</li>';
+    }
+}
+
+/**
+ * Add a new Git remote
+ */
+async function addGitRemote() {
+    const nameInput = document.getElementById('remoteName');
+    const urlInput = document.getElementById('remoteUrl');
+    
+    const name = nameInput.value.trim();
+    const url = urlInput.value.trim();
+    
+    if (!name || !url) {
+        showStatus('Please enter both remote name and URL', 'error');
+        return;
+    }
+    
+    try {
+        // Get auth token if needed
+        if (!gitAuthToken) {
+            gitAuthToken = await getGitAuthToken();
+        }
+        
+        const response = await fetch('vault-api.php?type=git&action=add-remote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': gitAuthToken
+            },
+            body: JSON.stringify({ name, url })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to add remote');
+        }
+        
+        const data = await response.json();
+        
+        showStatus(`Remote '${name}' added successfully`, 'success');
+        nameInput.value = '';
+        urlInput.value = '';
+        loadGitRemotes();
+        
+    } catch (error) {
+        console.error('Failed to add remote:', error);
+        showStatus('Failed to add remote: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Remove a Git remote
+ */
+async function removeGitRemote(name) {
+    if (!confirm(`Remove remote '${name}'?`)) {
+        return;
+    }
+    
+    try {
+        if (!gitAuthToken) {
+            gitAuthToken = await getGitAuthToken();
+        }
+        
+        const response = await fetch('vault-api.php?type=git&action=remove-remote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': gitAuthToken
+            },
+            body: JSON.stringify({ name })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to remove remote');
+        }
+        
+        showStatus(`Remote '${name}' removed`, 'success');
+        loadGitRemotes();
+        
+    } catch (error) {
+        console.error('Failed to remove remote:', error);
+        showStatus('Failed to remove remote: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Test Git connection to a remote
+ */
+async function testGitConnection(remoteName) {
+    const remoteToTest = remoteName || document.getElementById('remoteToTest').value;
+    
+    if (!remoteToTest) {
+        showStatus('Please select a remote to test', 'error');
+        return;
+    }
+    
+    const testResult = document.getElementById('testResult');
+    testResult.innerHTML = '<span class="status-checking">Testing connection...</span>';
+    
+    try {
+        const response = await fetch('vault-api.php?type=git&action=test-connection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ remote: remoteToTest })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            testResult.innerHTML = '<span class="status-success">✓ Connection successful</span>';
+        } else {
+            testResult.innerHTML = `<span class="status-error">✗ Connection failed: ${data.error || 'Unknown error'}</span>`;
+        }
+        
+    } catch (error) {
+        console.error('Failed to test connection:', error);
+        testResult.innerHTML = '<span class="status-error">✗ Test failed</span>';
+    }
+}
+
+/**
+ * Load SSH keys
+ */
+async function loadSSHKeys() {
+    const keysList = document.getElementById('sshKeysList');
+    
+    try {
+        const response = await fetch('vault-api.php?type=git&action=list-keys', {
+            method: 'GET'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load SSH keys');
+        }
+        
+        const data = await response.json();
+        
+        if (data.keys && data.keys.length > 0) {
+            keysList.innerHTML = '';
+            data.keys.forEach(key => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="ssh-key-item">
+                        <span><strong>${key.name}</strong> (${key.type})</span>
+                        <div class="key-actions">
+                            <button onclick="viewPublicKey('${key.name}')" class="btn-small">View Public</button>
+                            <button onclick="deleteSSHKey('${key.name}')" class="btn-small btn-danger">Delete</button>
+                        </div>
+                    </div>
+                `;
+                keysList.appendChild(li);
+            });
+        } else {
+            keysList.innerHTML = '<li>No SSH keys configured</li>';
+        }
+        
+    } catch (error) {
+        console.error('Failed to load SSH keys:', error);
+        keysList.innerHTML = '<li class="error">Failed to load SSH keys</li>';
+    }
+}
+
+/**
+ * Generate new SSH key
+ */
+async function generateSSHKey() {
+    const keyNameInput = document.getElementById('keyName');
+    const keyTypeSelect = document.getElementById('keyType');
+    
+    const name = keyNameInput.value.trim();
+    const type = keyTypeSelect.value;
+    
+    if (!name) {
+        showStatus('Please enter a key name', 'error');
+        return;
+    }
+    
+    try {
+        if (!gitAuthToken) {
+            gitAuthToken = await getGitAuthToken();
+        }
+        
+        showStatus('Generating SSH key...', 'info');
+        
+        const response = await fetch('vault-api.php?type=git&action=generate-key', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': gitAuthToken
+            },
+            body: JSON.stringify({ name, type })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to generate key');
+        }
+        
+        const data = await response.json();
+        
+        // Display the public key
+        const publicKeyDisplay = document.getElementById('publicKeyDisplay');
+        publicKeyDisplay.innerHTML = `
+            <h4>Public Key Generated:</h4>
+            <textarea readonly class="public-key-textarea">${data.publicKey}</textarea>
+            <p class="help-text">Copy this public key to your Git service (GitHub, GitLab, etc.)</p>
+        `;
+        
+        showStatus('SSH key generated successfully', 'success');
+        keyNameInput.value = '';
+        loadSSHKeys();
+        
+    } catch (error) {
+        console.error('Failed to generate SSH key:', error);
+        showStatus('Failed to generate SSH key: ' + error.message, 'error');
+    }
+}
+
+/**
+ * View public key
+ */
+async function viewPublicKey(keyName) {
+    try {
+        const response = await fetch(`vault-api.php?type=git&action=view-key&key=${encodeURIComponent(keyName)}`, {
+            method: 'GET'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to get public key');
+        }
+        
+        const data = await response.json();
+        
+        const publicKeyDisplay = document.getElementById('publicKeyDisplay');
+        publicKeyDisplay.innerHTML = `
+            <h4>Public Key for ${keyName}:</h4>
+            <textarea readonly class="public-key-textarea">${data.publicKey}</textarea>
+            <button onclick="copyToClipboard('${data.publicKey}')" class="btn-small">Copy to Clipboard</button>
+        `;
+        
+    } catch (error) {
+        console.error('Failed to view public key:', error);
+        showStatus('Failed to view public key: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Delete SSH key
+ */
+async function deleteSSHKey(keyName) {
+    if (!confirm(`Delete SSH key '${keyName}'? This cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        if (!gitAuthToken) {
+            gitAuthToken = await getGitAuthToken();
+        }
+        
+        const response = await fetch('vault-api.php?type=git&action=delete-key', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': gitAuthToken
+            },
+            body: JSON.stringify({ name: keyName })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete key');
+        }
+        
+        showStatus(`SSH key '${keyName}' deleted`, 'success');
+        loadSSHKeys();
+        
+    } catch (error) {
+        console.error('Failed to delete SSH key:', error);
+        showStatus('Failed to delete SSH key: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Push to remote repository
+ */
+async function pushToRemote() {
+    const remoteSelect = document.getElementById('remoteToPush');
+    const remote = remoteSelect.value;
+    
+    if (!remote) {
+        showStatus('Please select a remote', 'error');
+        return;
+    }
+    
+    try {
+        if (!gitAuthToken) {
+            gitAuthToken = await getGitAuthToken();
+        }
+        
+        showStatus('Pushing to remote...', 'info');
+        
+        const response = await fetch('vault-api.php?type=git&action=push', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Auth-Token': gitAuthToken
+            },
+            body: JSON.stringify({ remote })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showStatus(`Successfully pushed to '${remote}'`, 'success');
+            refreshGitStatus();
+        } else {
+            showStatus(`Push failed: ${data.error || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Failed to push:', error);
+        showStatus('Failed to push: ' + error.message, 'error');
+    }
+}
+
+/**
+ * View Git history
+ */
+async function viewGitHistory() {
+    const historyDiv = document.getElementById('gitHistory');
+    historyDiv.innerHTML = '<div class="status-checking">Loading history...</div>';
+    
+    try {
+        const response = await fetch('vault-api.php?type=git&action=history', {
+            method: 'GET'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load history');
+        }
+        
+        const data = await response.json();
+        
+        if (data.commits && data.commits.length > 0) {
+            let historyHTML = '<div class="git-history">';
+            historyHTML += '<h4>Recent Commits:</h4>';
+            historyHTML += '<ul class="commit-list">';
+            
+            data.commits.forEach(commit => {
+                historyHTML += `
+                    <li class="commit-item">
+                        <div class="commit-hash">${commit.hash.substring(0, 7)}</div>
+                        <div class="commit-message">${commit.message}</div>
+                        <div class="commit-date">${commit.date}</div>
+                    </li>
+                `;
+            });
+            
+            historyHTML += '</ul></div>';
+            historyDiv.innerHTML = historyHTML;
+        } else {
+            historyDiv.innerHTML = '<div class="no-history">No commit history available</div>';
+        }
+        
+    } catch (error) {
+        console.error('Failed to view history:', error);
+        historyDiv.innerHTML = '<div class="error">Failed to load history</div>';
+    }
+}
+
+/**
+ * Get authentication token for Git operations
+ */
+async function getGitAuthToken() {
+    // Try to use existing enrolled key
+    const keys = Array.from(GoldeneveData.keys.values());
+    if (keys.length > 0) {
+        const firstKey = keys[0];
+        return await getAuthToken(firstKey.credentialId);
+    }
+    
+    // No keys available
+    showStatus('Please enroll a YubiKey first', 'error');
+    throw new Error('No YubiKey enrolled');
+}
+
+/**
+ * Copy text to clipboard
+ */
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showStatus('Copied to clipboard', 'success');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showStatus('Failed to copy to clipboard', 'error');
+    });
+}
+
 // Initialize when page loads
 window.addEventListener('load', init);

@@ -52,7 +52,7 @@ $type = $_GET['type'] ?? 'backup'; // backup, enrollment, or vault
 $action = $_GET['action'] ?? ''; // list, upload, download, auth, etc.
 
 // Validate type
-if (!in_array($type, ['backup', 'enrollment', 'vault'])) {
+if (!in_array($type, ['backup', 'enrollment', 'vault', 'git'])) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid type parameter']);
     exit();
@@ -69,6 +69,22 @@ try {
             echo json_encode(['error' => 'Authentication required']);
             exit();
         }
+    }
+    
+    // Handle authentication for Git write operations
+    if ($type === 'git' && in_array($action, ['add-remote', 'remove-remote', 'generate-key', 'delete-key', 'push'])) {
+        $authToken = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+        if (!validateAuthToken($authToken)) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Authentication required']);
+            exit();
+        }
+    }
+    
+    // Handle Git operations separately
+    if ($type === 'git') {
+        handleGitOperation($method, $action);
+        exit();
     }
     
     switch ($method) {
@@ -476,5 +492,492 @@ function cleanupAuthTokens() {
 // Run token cleanup occasionally
 if (rand(1, 100) === 1) {
     cleanupAuthTokens();
+}
+
+// =============================================================================
+// Git Management Functions
+// =============================================================================
+
+function handleGitOperation($method, $action) {
+    switch ($action) {
+        case 'status':
+            if ($method === 'GET') {
+                getGitStatus();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'remotes':
+            if ($method === 'GET') {
+                listGitRemotes();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'add-remote':
+            if ($method === 'POST') {
+                addGitRemote();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'remove-remote':
+            if ($method === 'POST') {
+                removeGitRemote();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'test-connection':
+            if ($method === 'POST') {
+                testGitConnection();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'list-keys':
+            if ($method === 'GET') {
+                listSSHKeys();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'generate-key':
+            if ($method === 'POST') {
+                generateSSHKey();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'view-key':
+            if ($method === 'GET') {
+                viewSSHKey();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'delete-key':
+            if ($method === 'POST') {
+                deleteSSHKey();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'push':
+            if ($method === 'POST') {
+                pushToRemote();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'history':
+            if ($method === 'GET') {
+                getGitHistory();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        default:
+            http_response_code(404);
+            echo json_encode(['error' => 'Invalid Git action']);
+            break;
+    }
+}
+
+/**
+ * Get Git repository status
+ */
+function getGitStatus() {
+    $gitDir = GIT_BACKUP_DIR . '.git';
+    
+    if (!is_dir($gitDir)) {
+        echo json_encode([
+            'initialized' => false,
+            'message' => 'Git repository not initialized'
+        ]);
+        return;
+    }
+    
+    // Get branch
+    exec('cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git branch --show-current 2>&1', $branch, $branchCode);
+    
+    // Get commit count
+    exec('cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git rev-list --count HEAD 2>&1', $countOutput, $countCode);
+    
+    // Get last commit
+    exec('cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git log -1 --format="%h %s (%ar)" 2>&1', $lastCommit, $lastCode);
+    
+    // Check for uncommitted changes
+    exec('cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git status --porcelain 2>&1', $statusOutput, $statusCode);
+    
+    echo json_encode([
+        'initialized' => true,
+        'branch' => $branchCode === 0 ? $branch[0] : 'unknown',
+        'commitCount' => $countCode === 0 ? intval($countOutput[0]) : 0,
+        'lastCommit' => $lastCode === 0 && !empty($lastCommit[0]) ? $lastCommit[0] : 'No commits yet',
+        'hasChanges' => !empty($statusOutput)
+    ]);
+}
+
+/**
+ * List configured Git remotes
+ */
+function listGitRemotes() {
+    if (!is_dir(GIT_BACKUP_DIR . '.git')) {
+        echo json_encode(['remotes' => []]);
+        return;
+    }
+    
+    exec('cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git remote -v 2>&1', $output, $returnCode);
+    
+    $remotes = [];
+    $seen = [];
+    
+    foreach ($output as $line) {
+        if (preg_match('/^(\S+)\s+(\S+)\s+\(fetch\)/', $line, $matches)) {
+            $name = $matches[1];
+            $url = $matches[2];
+            
+            if (!isset($seen[$name])) {
+                $remotes[] = ['name' => $name, 'url' => $url];
+                $seen[$name] = true;
+            }
+        }
+    }
+    
+    echo json_encode(['remotes' => $remotes]);
+}
+
+/**
+ * Add a Git remote
+ */
+function addGitRemote() {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    
+    if (!$data || !isset($data['name']) || !isset($data['url'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing remote name or URL']);
+        return;
+    }
+    
+    $name = preg_replace('/[^a-zA-Z0-9_-]/', '', $data['name']);
+    $url = $data['url'];
+    
+    // Validate URL format
+    if (!filter_var($url, FILTER_VALIDATE_URL) && !preg_match('/^git@[^:]+:.*\.git$/', $url)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid URL format']);
+        return;
+    }
+    
+    // Initialize Git if needed
+    if (!is_dir(GIT_BACKUP_DIR . '.git')) {
+        initGitBackup();
+    }
+    
+    // Add remote
+    $command = 'cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git remote add ' . escapeshellarg($name) . ' ' . escapeshellarg($url) . ' 2>&1';
+    exec($command, $output, $returnCode);
+    
+    if ($returnCode !== 0) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to add remote: ' . implode(' ', $output)]);
+        return;
+    }
+    
+    echo json_encode(['success' => true, 'message' => 'Remote added successfully']);
+}
+
+/**
+ * Remove a Git remote
+ */
+function removeGitRemote() {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    
+    if (!$data || !isset($data['name'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing remote name']);
+        return;
+    }
+    
+    $name = preg_replace('/[^a-zA-Z0-9_-]/', '', $data['name']);
+    
+    $command = 'cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git remote remove ' . escapeshellarg($name) . ' 2>&1';
+    exec($command, $output, $returnCode);
+    
+    if ($returnCode !== 0) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to remove remote: ' . implode(' ', $output)]);
+        return;
+    }
+    
+    echo json_encode(['success' => true, 'message' => 'Remote removed successfully']);
+}
+
+/**
+ * Test connection to a Git remote
+ */
+function testGitConnection() {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    
+    if (!$data || !isset($data['remote'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing remote name']);
+        return;
+    }
+    
+    $remote = preg_replace('/[^a-zA-Z0-9_-]/', '', $data['remote']);
+    
+    // Try to fetch from remote (dry-run)
+    $command = 'cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git ls-remote ' . escapeshellarg($remote) . ' HEAD 2>&1';
+    exec($command, $output, $returnCode);
+    
+    if ($returnCode === 0) {
+        echo json_encode(['success' => true, 'message' => 'Connection successful']);
+    } else {
+        echo json_encode(['success' => false, 'error' => implode(' ', $output)]);
+    }
+}
+
+/**
+ * List SSH keys
+ */
+function listSSHKeys() {
+    $sshDir = DATA_DIR . '.ssh/';
+    
+    if (!is_dir($sshDir)) {
+        echo json_encode(['keys' => []]);
+        return;
+    }
+    
+    $keys = [];
+    $files = glob($sshDir . '*.pub');
+    
+    foreach ($files as $file) {
+        $name = basename($file, '.pub');
+        $content = file_get_contents($file);
+        
+        // Extract key type
+        $type = 'unknown';
+        if (strpos($content, 'ssh-rsa') === 0) {
+            $type = 'RSA';
+        } elseif (strpos($content, 'ssh-ed25519') === 0) {
+            $type = 'Ed25519';
+        } elseif (strpos($content, 'ecdsa-sha2-') === 0) {
+            $type = 'ECDSA';
+        }
+        
+        $keys[] = [
+            'name' => $name,
+            'type' => $type,
+            'fingerprint' => substr(md5($content), 0, 16)
+        ];
+    }
+    
+    echo json_encode(['keys' => $keys]);
+}
+
+/**
+ * Generate SSH key
+ */
+function generateSSHKey() {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    
+    if (!$data || !isset($data['name']) || !isset($data['type'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing key name or type']);
+        return;
+    }
+    
+    $name = preg_replace('/[^a-zA-Z0-9_-]/', '', $data['name']);
+    $type = $data['type'];
+    
+    // Validate type
+    if (!in_array($type, ['ed25519', 'rsa'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid key type']);
+        return;
+    }
+    
+    // Create SSH directory if needed
+    $sshDir = DATA_DIR . '.ssh/';
+    if (!is_dir($sshDir)) {
+        mkdir($sshDir, 0700, true);
+    }
+    
+    $keyPath = $sshDir . $name;
+    
+    // Check if key already exists
+    if (file_exists($keyPath)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Key with this name already exists']);
+        return;
+    }
+    
+    // Generate key
+    $command = 'ssh-keygen -t ' . escapeshellarg($type) . ' -f ' . escapeshellarg($keyPath) . ' -N "" -C "goldeneye@' . $_SERVER['HTTP_HOST'] . '" 2>&1';
+    exec($command, $output, $returnCode);
+    
+    if ($returnCode !== 0) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to generate key: ' . implode(' ', $output)]);
+        return;
+    }
+    
+    // Read public key
+    $publicKey = file_get_contents($keyPath . '.pub');
+    
+    // Set proper permissions
+    chmod($keyPath, 0600);
+    chmod($keyPath . '.pub', 0644);
+    
+    echo json_encode([
+        'success' => true,
+        'publicKey' => $publicKey,
+        'message' => 'SSH key generated successfully'
+    ]);
+}
+
+/**
+ * View SSH public key
+ */
+function viewSSHKey() {
+    $keyName = $_GET['key'] ?? '';
+    
+    if (!$keyName) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing key name']);
+        return;
+    }
+    
+    $keyName = preg_replace('/[^a-zA-Z0-9_-]/', '', $keyName);
+    $keyPath = DATA_DIR . '.ssh/' . $keyName . '.pub';
+    
+    if (!file_exists($keyPath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Key not found']);
+        return;
+    }
+    
+    $publicKey = file_get_contents($keyPath);
+    echo json_encode(['publicKey' => $publicKey]);
+}
+
+/**
+ * Delete SSH key
+ */
+function deleteSSHKey() {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    
+    if (!$data || !isset($data['name'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing key name']);
+        return;
+    }
+    
+    $name = preg_replace('/[^a-zA-Z0-9_-]/', '', $data['name']);
+    $keyPath = DATA_DIR . '.ssh/' . $name;
+    
+    if (!file_exists($keyPath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Key not found']);
+        return;
+    }
+    
+    // Delete both private and public keys
+    @unlink($keyPath);
+    @unlink($keyPath . '.pub');
+    
+    echo json_encode(['success' => true, 'message' => 'Key deleted successfully']);
+}
+
+/**
+ * Push to remote repository
+ */
+function pushToRemote() {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    
+    if (!$data || !isset($data['remote'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing remote name']);
+        return;
+    }
+    
+    $remote = preg_replace('/[^a-zA-Z0-9_-]/', '', $data['remote']);
+    
+    // First, commit any uncommitted changes
+    exec('cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git add . && git commit -m "Auto-commit before push" 2>&1', $commitOutput, $commitCode);
+    
+    // Configure SSH if needed
+    $sshCommand = '';
+    $sshKeys = glob(DATA_DIR . '.ssh/*.pub');
+    if (!empty($sshKeys)) {
+        $privateKey = str_replace('.pub', '', $sshKeys[0]);
+        $sshCommand = 'GIT_SSH_COMMAND="ssh -i ' . escapeshellarg($privateKey) . ' -o StrictHostKeyChecking=no" ';
+    }
+    
+    // Push to remote
+    $command = 'cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && ' . $sshCommand . 'git push ' . escapeshellarg($remote) . ' main 2>&1';
+    exec($command, $output, $returnCode);
+    
+    if ($returnCode === 0) {
+        echo json_encode(['success' => true, 'message' => 'Successfully pushed to remote']);
+    } else {
+        echo json_encode(['success' => false, 'error' => implode(' ', $output)]);
+    }
+}
+
+/**
+ * Get Git commit history
+ */
+function getGitHistory() {
+    if (!is_dir(GIT_BACKUP_DIR . '.git')) {
+        echo json_encode(['commits' => []]);
+        return;
+    }
+    
+    exec('cd ' . escapeshellarg(GIT_BACKUP_DIR) . ' && git log --format="%H|%s|%ai" -20 2>&1', $output, $returnCode);
+    
+    $commits = [];
+    foreach ($output as $line) {
+        $parts = explode('|', $line, 3);
+        if (count($parts) === 3) {
+            $commits[] = [
+                'hash' => $parts[0],
+                'message' => $parts[1],
+                'date' => $parts[2]
+            ];
+        }
+    }
+    
+    echo json_encode(['commits' => $commits]);
 }
 ?>

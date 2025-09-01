@@ -98,6 +98,97 @@
         .nav-tab:hover {
             color: var(--link-color);
         }
+        
+        /* Git Backup Tab Styles */
+        .status-box {
+            background: var(--bg-color);
+            border: 1px solid var(--text-color);
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(var(--text-color-rgb), 0.1);
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-label {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        
+        .status-value {
+            color: var(--text-color);
+            font-family: monospace;
+        }
+        
+        .status-value.connected {
+            color: #2a664d;
+        }
+        
+        .status-value.disconnected {
+            color: #cc3300;
+        }
+        
+        .remote-list {
+            margin: 1rem 0;
+        }
+        
+        .remote-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            background: var(--bg-color);
+            border: 1px solid var(--text-color);
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .remote-url {
+            font-family: monospace;
+            flex-grow: 1;
+            margin-right: 1rem;
+        }
+        
+        .code-display {
+            background: var(--bg-color);
+            border: 1px solid var(--text-color);
+            border-radius: 4px;
+            padding: 1rem;
+        }
+        
+        .code-display pre {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .history-display {
+            background: var(--bg-color);
+            border: 1px solid var(--text-color);
+            border-radius: 4px;
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .history-display pre {
+            font-family: monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
 
         .tab-content {
             display: none;
@@ -420,6 +511,7 @@
                     <button class="nav-tab" onclick="showTab('data')">Data Operations</button>
                     <button class="nav-tab" onclick="showTab('security')">Security Settings</button>
                     <button class="nav-tab" onclick="showTab('backup')">Backup & Export</button>
+                    <button class="nav-tab" onclick="showTab('git')">Git Backup</button>
                 </div>
 
                 <!-- Key Management Tab -->
@@ -587,6 +679,118 @@
                     </div>
                 </div>
 
+                <!-- Git Backup Tab -->
+                <div id="gitTab" class="tab-content">
+                    <div class="section">
+                        <h2>Git Backup Configuration</h2>
+                        
+                        <!-- Git Status Section -->
+                        <div class="section">
+                            <h3>Backup Status</h3>
+                            <div id="gitStatus" class="status-box">
+                                <div class="status-item">
+                                    <span class="status-label">Connection:</span>
+                                    <span id="gitConnectionStatus" class="status-value">Not configured</span>
+                                </div>
+                                <div class="status-item">
+                                    <span class="status-label">Last Push:</span>
+                                    <span id="gitLastPush" class="status-value">Never</span>
+                                </div>
+                                <div class="status-item">
+                                    <span class="status-label">Pending Commits:</span>
+                                    <span id="gitPendingCommits" class="status-value">0</span>
+                                </div>
+                                <div class="status-item">
+                                    <span class="status-label">Auto Push:</span>
+                                    <span id="gitAutoPush" class="status-value">Disabled</span>
+                                </div>
+                            </div>
+                            <button class="btn" onclick="refreshGitStatus()">Refresh Status</button>
+                        </div>
+
+                        <!-- Remote Repository Section -->
+                        <div class="section">
+                            <h3>Remote Repository</h3>
+                            <div class="instruction-text">
+                                Configure a remote Git repository for automatic enrollment backups.
+                            </div>
+                            
+                            <div id="gitRemoteList" class="remote-list">
+                                <!-- Dynamic remote list will be inserted here -->
+                            </div>
+                            
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label for="gitRemoteUrl">Repository URL:</label>
+                                <input type="text" id="gitRemoteUrl" placeholder="git@github.com:username/repository.git" style="width: 100%; max-width: 500px;">
+                            </div>
+                            
+                            <div style="margin-top: 1rem;">
+                                <button class="btn success" onclick="addGitRemote()">Add Remote</button>
+                                <button class="btn" onclick="testGitConnection()">Test Connection</button>
+                            </div>
+                            
+                            <div id="gitConnectionResult" class="status-message" style="margin-top: 1rem; display: none;"></div>
+                        </div>
+
+                        <!-- SSH Key Management Section -->
+                        <div class="section">
+                            <h3>SSH Key Management</h3>
+                            <div class="instruction-text">
+                                Generate and manage SSH keys for secure Git authentication.
+                            </div>
+                            
+                            <div id="sshKeyStatus" class="status-box">
+                                <div class="status-item">
+                                    <span class="status-label">SSH Key:</span>
+                                    <span id="sshKeyExists" class="status-value">Not found</span>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 1rem;">
+                                <button class="btn success" onclick="generateSSHKey()">Generate New SSH Key</button>
+                                <button class="btn" onclick="viewPublicKey()">View Public Key</button>
+                                <button class="btn danger" onclick="deleteSSHKey()">Delete SSH Key</button>
+                            </div>
+                            
+                            <div id="sshPublicKey" class="code-display" style="display: none; margin-top: 1rem;">
+                                <h4>Public SSH Key (add this to your Git service):</h4>
+                                <pre id="sshPublicKeyContent"></pre>
+                                <button class="btn small" onclick="copyPublicKey()">Copy to Clipboard</button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Operations Section -->
+                        <div class="section">
+                            <h3>Manual Operations</h3>
+                            <div class="instruction-text">
+                                Manually push changes or view backup history.
+                            </div>
+                            
+                            <div style="margin-top: 1rem;">
+                                <button class="btn success" onclick="pushToRemote()">Push Now</button>
+                                <button class="btn" onclick="viewGitHistory()">View History</button>
+                                <button class="btn" onclick="pullFromRemote()">Pull (Recovery)</button>
+                            </div>
+                            
+                            <div id="gitHistory" class="history-display" style="display: none; margin-top: 1rem;">
+                                <h4>Recent Commits:</h4>
+                                <pre id="gitHistoryContent"></pre>
+                            </div>
+                        </div>
+
+                        <!-- Auto Push Configuration -->
+                        <div class="section">
+                            <h3>Automatic Push</h3>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="gitAutoPushEnabled" onchange="toggleAutoPush()">
+                                    Enable automatic push after each enrollment
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -717,6 +921,8 @@
                 if (typeof refreshKeyList === 'function') refreshKeyList();
             } else if (tabName === 'data') {
                 if (typeof populateKeySelectors === 'function') populateKeySelectors();
+            } else if (tabName === 'git') {
+                if (typeof initGitTab === 'function') initGitTab();
             }
         }
         
