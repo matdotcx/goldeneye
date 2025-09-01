@@ -421,6 +421,7 @@
                     <button class="nav-tab" onclick="showTab('data')">Data Operations</button>
                     <button class="nav-tab" onclick="showTab('security')">Security Settings</button>
                     <button class="nav-tab" onclick="showTab('backup')">Backup & Export</button>
+                    <button class="nav-tab" onclick="showTab('git')">Git Backup</button>
                 </div>
 
                 <!-- Key Management Tab -->
@@ -588,6 +589,104 @@
                     </div>
                 </div>
 
+                <!-- Git Backup Tab -->
+                <div id="gitTab" class="tab-content">
+                    <div class="section">
+                        <h2>Git Backup Configuration</h2>
+                        
+                        <!-- Git Status Section -->
+                        <div class="section">
+                            <h3>Backup Status</h3>
+                            <div id="gitStatus" class="status-box">
+                                <span class="status-checking">Checking Git status...</span>
+                            </div>
+                            <button class="btn" onclick="refreshGitStatus()">Refresh Status</button>
+                        </div>
+
+                        <!-- Remote Repository Section -->
+                        <div class="section">
+                            <h3>Remote Repositories</h3>
+                            <div class="instruction-text">
+                                Configure remote Git repositories for automatic enrollment backups.
+                            </div>
+                            
+                            <ul id="remotesList" class="remote-list">
+                                <li>Loading remotes...</li>
+                            </ul>
+                            
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label for="remoteName">Remote Name:</label>
+                                <input type="text" id="remoteName" placeholder="origin" style="max-width: 200px;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="remoteUrl">Repository URL:</label>
+                                <input type="text" id="remoteUrl" placeholder="git@github.com:username/repository.git" style="width: 100%; max-width: 500px;">
+                            </div>
+                            
+                            <button class="btn success" onclick="addGitRemote()">Add Remote</button>
+                            
+                            <div class="form-group" style="margin-top: 2rem;">
+                                <label for="remoteToTest">Test Connection:</label>
+                                <select id="remoteToTest">
+                                    <option value="">Select remote...</option>
+                                </select>
+                                <button class="btn" onclick="testGitConnection()">Test</button>
+                                <span id="testResult"></span>
+                            </div>
+                        </div>
+
+                        <!-- SSH Key Management Section -->
+                        <div class="section">
+                            <h3>SSH Key Management</h3>
+                            <div class="instruction-text">
+                                Generate and manage SSH keys for secure Git authentication.
+                            </div>
+                            
+                            <ul id="sshKeysList" class="ssh-keys-list">
+                                <li>Loading SSH keys...</li>
+                            </ul>
+                            
+                            <div class="form-group" style="margin-top: 1rem;">
+                                <label for="keyName">Key Name:</label>
+                                <input type="text" id="keyName" placeholder="goldeneye-github" style="max-width: 300px;">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="keyType">Key Type:</label>
+                                <select id="keyType">
+                                    <option value="ed25519">Ed25519 (Recommended)</option>
+                                    <option value="rsa">RSA</option>
+                                </select>
+                            </div>
+                            
+                            <button class="btn success" onclick="generateSSHKey()">Generate New SSH Key</button>
+                            
+                            <div id="publicKeyDisplay" style="margin-top: 1rem;"></div>
+                        </div>
+
+                        <!-- Manual Operations Section -->
+                        <div class="section">
+                            <h3>Manual Operations</h3>
+                            <div class="instruction-text">
+                                Manually push changes or view backup history.
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="remoteToPush">Push to Remote:</label>
+                                <select id="remoteToPush">
+                                    <option value="">Select remote...</option>
+                                </select>
+                                <button class="btn success" onclick="pushToRemote()">Push Now</button>
+                            </div>
+                            
+                            <button class="btn" onclick="viewGitHistory()" style="margin-top: 1rem;">View History</button>
+                            
+                            <div id="gitHistory" style="margin-top: 1rem;"></div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -718,6 +817,8 @@
                 if (typeof refreshKeyList === 'function') refreshKeyList();
             } else if (tabName === 'data') {
                 if (typeof populateKeySelectors === 'function') populateKeySelectors();
+            } else if (tabName === 'git') {
+                if (typeof initGitTab === 'function') initGitTab();
             }
         }
         
