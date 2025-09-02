@@ -30,6 +30,7 @@ define('BACKUP_DIR', DATA_DIR . 'backups/');
 define('ENROLLMENT_DIR', DATA_DIR . 'enrollments/');
 define('VAULT_DIR', DATA_DIR . 'vaults/');
 define('GIT_BACKUP_DIR', DATA_DIR . 'git-backup/');
+define('SETTINGS_FILE', DATA_DIR . 'settings.json');
 
 define('MAX_DATA_SIZE', 1024 * 1024); // 1MB limit
 define('BACKUP_RETENTION_DAYS', -1); // Never expire backups
@@ -60,7 +61,7 @@ $type = $_GET['type'] ?? 'backup'; // backup, enrollment, or vault
 $action = $_GET['action'] ?? ''; // list, upload, download, auth, etc.
 
 // Validate type
-if (!in_array($type, ['backup', 'enrollment', 'vault', 'git'])) {
+if (!in_array($type, ['backup', 'enrollment', 'vault', 'git', 'settings'])) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid type parameter']);
     exit();
@@ -92,6 +93,12 @@ try {
     // Handle Git operations separately
     if ($type === 'git') {
         handleGitOperation($method, $action);
+        exit();
+    }
+    
+    // Handle Settings operations
+    if ($type === 'settings') {
+        handleSettingsOperation($method, $action);
         exit();
     }
     
@@ -987,5 +994,94 @@ function getGitHistory() {
     }
     
     echo json_encode(['commits' => $commits]);
+}
+
+// Settings management functions
+function handleSettingsOperation($method, $action) {
+    switch ($action) {
+        case 'save':
+            if ($method === 'POST') {
+                saveSettings();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        case 'load':
+            if ($method === 'GET') {
+                loadSettings();
+            } else {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed']);
+            }
+            break;
+            
+        default:
+            http_response_code(404);
+            echo json_encode(['error' => 'Invalid action']);
+            break;
+    }
+}
+
+function saveSettings() {
+    // Get JSON input
+    $input = file_get_contents('php://input');
+    $settings = json_decode($input, true);
+    
+    if (!$settings) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid JSON data']);
+        return;
+    }
+    
+    // Add metadata
+    $settings['lastUpdated'] = date('Y-m-d H:i:s');
+    
+    // Save settings to file
+    $result = file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_PRETTY_PRINT));
+    
+    if ($result === false) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to save settings']);
+        return;
+    }
+    
+    // Also backup settings to Git
+    if (file_exists(GIT_BACKUP_DIR . '.git')) {
+        copy(SETTINGS_FILE, GIT_BACKUP_DIR . 'settings.json');
+        gitBackup(SETTINGS_FILE, 'Settings updated');
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Settings saved successfully'
+    ]);
+}
+
+function loadSettings() {
+    if (!file_exists(SETTINGS_FILE)) {
+        // Return default settings if file doesn't exist
+        echo json_encode([
+            'systemName' => 'Goldeneye Vault',
+            'sessionTimeout' => 30,
+            'reauthTimeout' => 10,
+            'autoExpire' => 1800000,
+            'requireTwoKeys' => true,
+            'allowInactive' => false
+        ]);
+        return;
+    }
+    
+    $settings = file_get_contents(SETTINGS_FILE);
+    if ($settings === false) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to read settings']);
+        return;
+    }
+    
+    // Return settings as-is (already JSON)
+    header('Content-Type: application/json');
+    echo $settings;
 }
 ?>
