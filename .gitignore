@@ -1,4 +1,4 @@
-# CRITICAL SECURITY: Data directory MUST NEVER be in web root or git
+# Warning: Data directory must never be in web root or git
 data/
 /data/
 goldeneye-data/
@@ -35,3 +35,6 @@ config.local.js
 # Log files
 *.log
 logs/
+
+# MCP configuration (contains sensitive API keys)
+.mcp.json
