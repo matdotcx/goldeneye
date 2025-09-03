@@ -52,7 +52,7 @@
 ## Test Scenarios
 
 ### Scenario 1: Initial Setup
-1. Access admin panel (admin.html)
+1. Access admin panel (admin/index.html)
 2. Enroll first YubiKey with name "Owner Primary"
 3. Enroll second YubiKey with name "Inheritor Key 1" 
 4. Store test data: "MyVault123!Secret"

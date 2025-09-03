@@ -23,7 +23,7 @@ The Goldeneye admin panel now includes a comprehensive Git Backup tab for managi
 
 ### Accessing the Git Backup Interface
 
-1. Navigate to the Goldeneye admin panel: `https://yourdomain.com/goldeneye/admin.html`
+1. Navigate to the Goldeneye admin panel: `https://yourdomain.com/goldeneye/admin/`
 2. Enroll a YubiKey for authentication (if not already done)
 3. Click on the "Git Backup" tab
 

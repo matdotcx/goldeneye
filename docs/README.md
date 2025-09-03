@@ -5,16 +5,23 @@ This directory contains comprehensive documentation for the Goldeneye dual YubiK
 ## Documentation Structure
 
 ### [📋 Overview](overview/)
-- **[README.md](overview/README.md)** - Main system overview and quick start
-- **[system-architecture.md](overview/system-architecture.md)** - Technical implementation details
+- **[architecture.md](overview/architecture.md)** - Technical implementation details and system design
+- **[features.md](overview/features.md)** - Complete feature overview and capabilities
 
 ### [🚀 Deployment](deployment/)
-- **[deployment.md](deployment/deployment.md)** - Complete deployment and installation guide
+- **[installation.md](deployment/installation.md)** - Complete installation guide
+- **[configuration.md](deployment/configuration.md)** - System configuration and settings
+- **[security-hardening.md](deployment/security-hardening.md)** - Production security guidelines
+
+### [⚙️ Features](features/)
+- **[enrollment-persistence.md](features/enrollment-persistence.md)** - YubiKey enrollment system
+- **[git-backup.md](features/git-backup.md)** - Git-based backup configuration
+- **[settings-persistence.md](features/settings-persistence.md)** - Server-side settings storage
 
 ### [🔒 Security](security/)
-- **[security-analysis.md](security/security-analysis.md)** - Comprehensive security analysis
-- **[admin-security.md](security/admin-security.md)** - Admin panel security documentation  
-- **[n-choose-2-analysis.md](security/n-choose-2-analysis.md)** - Technical analysis of cryptographic limitations
+- **[analysis.md](security/analysis.md)** - Comprehensive security analysis
+- **[admin-panel.md](security/admin-panel.md)** - Admin panel security documentation  
+- **[n-choose-2-limitation.md](security/n-choose-2-limitation.md)** - Technical analysis of cryptographic limitations
 
 ### [🧪 Development](development/)
 - **[testing.md](development/testing.md)** - Testing procedures and checklists
@@ -22,15 +29,16 @@ This directory contains comprehensive documentation for the Goldeneye dual YubiK
 ## Quick Navigation
 
 ### Getting Started
-- New to Goldeneye? Start with [Overview README](overview/README.md)
-- Ready to deploy? See [Deployment Guide](deployment/deployment.md)
-- Need security details? Check [Security Analysis](security/security-analysis.md)
+- New to Goldeneye? Start with [System Architecture](overview/architecture.md)
+- Ready to deploy? See [Installation Guide](deployment/installation.md)
+- Need security details? Check [Security Analysis](security/analysis.md)
 
 ### Common Tasks
-- **System Setup**: [Overview](overview/README.md) → [Deployment](deployment/deployment.md)
-- **Security Review**: [Security Analysis](security/security-analysis.md) + [Admin Security](security/admin-security.md)
+- **Initial Setup**: [Installation](deployment/installation.md) → [Configuration](deployment/configuration.md)
+- **Security Review**: [Security Analysis](security/analysis.md) + [Admin Panel Security](security/admin-panel.md)
+- **Feature Setup**: [Enrollment Persistence](features/enrollment-persistence.md) + [Git Backup](features/git-backup.md)
 - **Testing System**: [Testing Guide](development/testing.md)
-- **Understanding Limitations**: [N-Choose-2 Analysis](security/n-choose-2-analysis.md)
+- **Understanding Limitations**: [N-Choose-2 Analysis](security/n-choose-2-limitation.md)
 
 ## Documentation Status
 

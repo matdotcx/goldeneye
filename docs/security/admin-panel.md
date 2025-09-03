@@ -9,7 +9,7 @@
 - **HTTPS Enforcement**: WebAuthn requires secure connection
 
 ### Authentication Flow
-1. **Initial Access**: Visiting `/admin.html` shows authentication screen
+1. **Initial Access**: Visiting `/admin/` shows authentication screen
 2. **YubiKey Challenge**: System prompts for YubiKey insertion and touch
 3. **Session Creation**: Successful auth creates encrypted session in localStorage
 4. **Admin Panel Access**: Full admin functionality becomes available
@@ -99,7 +99,7 @@ Header always set Content-Security-Policy "default-src 'self'"
 
 ### For System Owner
 1. **First-Time Setup**:
-   - Visit `https://yourdomain.com/goldeneye/admin.html`
+   - Visit `https://yourdomain.com/goldeneye/admin/`
    - Insert admin YubiKey when prompted
    - Touch key to authenticate
    - Admin panel becomes available

@@ -103,17 +103,19 @@ Storage: Browser localStorage (encrypted) + Server persistence (optional)
 
 ```
 goldeneye/
-├── index.html          # Main application (self-contained)
-├── admin.html          # Admin panel for multi-key management
-├── vault-api.php       # Server-side persistence API (enrollments, backups)
-├── goldeneye-admin.js  # Admin panel JavaScript with sync capabilities
-├── ENROLLMENT_PERSISTENCE.md  # Detailed persistence system documentation
-├── README.md          # This file
-└── docs/               # Documentation
-    ├── overview/       # System overview and architecture
-    ├── deployment/     # Installation and configuration
-    ├── security/       # Security analysis and limitations
-    └── development/    # Testing and development guides
+├── index.html                    # Main user interface
+├── vault-api.php                 # Server-side API for persistence and backups
+├── admin/                        # Admin panel files
+│   ├── index.html               # Admin interface
+│   └── goldeneye-admin.js       # Admin panel JavaScript
+├── enrollment-persistence.md    # Enrollment system documentation
+├── README.md                    # This file
+└── docs/                        # Comprehensive documentation
+    ├── overview/                # System architecture and features
+    ├── deployment/              # Installation and configuration
+    ├── features/                # Feature-specific documentation
+    ├── security/                # Security analysis and guidelines
+    └── development/             # Testing and development guides
 ```
 
 ## Data Storage and Portability
@@ -130,7 +132,7 @@ The admin panel now includes automatic server synchronization:
 - YubiKey enrollments persist across browsers and devices
 - Git-based backup system for version history
 - No expiration for enrollment data
-- See [ENROLLMENT_PERSISTENCE.md](ENROLLMENT_PERSISTENCE.md) for full details
+- See [enrollment-persistence.md](docs/features/enrollment-persistence.md) for full details
 
 ### Backup and Recovery
 
@@ -157,7 +159,7 @@ Goldeneye is designed as a single, self-contained HTML file for maximum portabil
 2. No additional dependencies or server-side components needed
 3. Can be hosted on any static file server
 
-For detailed deployment instructions, see [docs/deployment/deployment.md](docs/deployment/deployment.md).
+For detailed deployment instructions, see [docs/deployment/installation.md](docs/deployment/installation.md).
 
 ## Inheritance Best Practices
 
@@ -181,7 +183,7 @@ For detailed deployment instructions, see [docs/deployment/deployment.md](docs/d
 
 This system implements cryptographically sound two-party control but should be thoroughly evaluated for your specific threat model. Consider professional security review for high-value inheritance scenarios.
 
-For detailed security analysis, see [docs/security/security-analysis.md](docs/security/security-analysis.md).
+For detailed security analysis, see [docs/security/analysis.md](docs/security/analysis.md).
 
 ## License
 

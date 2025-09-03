@@ -188,7 +188,7 @@ The admin panel now includes a dedicated **Git Backup** tab for managing backup 
 - Manual push operations
 - Commit history viewing
 
-See [Git Backup Setup Guide](docs/GIT_BACKUP_SETUP.md#admin-panel-git-configuration-recommended) for detailed instructions on using the web interface.
+See [Git Backup Setup Guide](git-backup.md#admin-panel-git-configuration-recommended) for detailed instructions on using the web interface.
 
 ### Manual Git Operations
 

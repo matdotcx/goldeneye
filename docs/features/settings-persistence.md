@@ -24,15 +24,11 @@ Implemented server-side storage for admin settings to resolve localStorage limit
 - Auto-saves to server every 30 seconds
 - Falls back to localStorage if server unavailable
 
-### 3. Setup Wizard Updates (setup-wizard.js)
-- Added `saveSettingsToServer()` function
-- Saves settings to server during initial configuration
-- Ensures new installations have server-side settings from start
-
-### 4. User Page Updates (goldeneye-user.html)
-- Modified `loadSystemName()` to fetch from server first
-- Caches server settings to localStorage for offline access
-- Graceful fallback to localStorage if server unavailable
+### 3. User Interface Updates
+- Main interface (`index.html`) loads system settings from server
+- Admin panel saves settings automatically every 30 seconds
+- Graceful fallback to localStorage cache when server unavailable
+- Automatic migration of existing localStorage-only settings
 
 ## Settings Structure
 ```json

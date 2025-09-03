@@ -85,7 +85,7 @@ These operations require YubiKey re-authentication:
 - **3+ Key Scenarios**: Only 1 out of C(n,2) combinations work
 - **Example**: With 4 keys, only 1 of 6 possible pairs can decrypt
 
-For detailed technical analysis, see [N-Choose-2 Cryptography](n-choose-2-analysis.md).
+For detailed technical analysis, see [N-Choose-2 Limitation](n-choose-2-limitation.md).
 
 ## Security Best Practices
 
